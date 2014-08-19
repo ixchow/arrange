@@ -12,9 +12,10 @@ class BuildJS:
 		print 'Building ' + self.path
 		result = BuildResult()
 		with open(self.path, 'rb') as f:
-			result.js += "(function(exports) {\n"
+			result.js += "%s = (function(exports) {\n" % self.namespace
 			result.js += f.read()
-			result.js += "\n})(%s = {});\n" % self.namespace
+			result.js += "\nreturn exports;\n"
+			result.js += "})({});\n"
 		return result
 
 class BuildNamespace:
