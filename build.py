@@ -1,0 +1,60 @@
+#!/usr/bin/env python
+
+import os
+
+class BuildResult:
+	def __init(self):
+		self.html = ""
+		self.js = ""
+
+class BuildJS:
+	"""This will somehow build javascript files"""
+	def __init__(self, path):
+		self.path = path
+	def build(self):
+		result = BuildResult()
+		with open('path', 'rb') as f:
+			result.js = f.read()
+
+resources = [] #tuple of ('name.space.name', builder)
+
+#walk directory structure, build list of files to process
+for root, dirs, files in os.walk('.'):
+	for file in files:
+	  	if file.endswith(".js"):
+			name = root.replace('/','.') + '.' + file[0:file.rfind('.')]
+			build = BuildJS(root + '/' + file)
+			resources.append((name, build))
+		  
+#somehow figure out the order to process the files in(?)
+
+# run the builders (TODO: could be done in parallel)
+builder_outputs = []
+for r in resources:
+	builder = r[1]
+	output = builder.build()
+	builder_outputs.push(output)
+
+#write an html file (as a stream)
+import subprocess
+
+html = open('tools/skel.html', 'r').read()
+resources_html = ''
+resources_js = ''
+for output in builder_outputs:
+	resources_html += output.html
+	resource_js += output.js
+
+html.replace('$RESOURCES', resource_html)
+
+# shell out to closure-compiler
+os.mkdir(tmp)
+open("tmp/in.js", "w").write(resources_js).close()
+subprocess.call(["closure-compiler", "--js", "tmp/in.js", "--js_output_file", "tmp/out.js"])
+compiled_js = open("tmp/out.js", "rb").read()
+
+html.replace('$JAVASCRIPT', compiled_js)
+  
+f = open('index.html', 'wb')
+f.write(html)
+f.close()
