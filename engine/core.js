@@ -1,11 +1,15 @@
-engine = engine || {};
+engine = window.engine || {};
 engine.core = engine.core || {};
 
-engine.core.init = function(document, window) {
+game = {};
+game.scene = {};
+game.scene.tick = function() {};
+
+engine.core.init = function() {
 	var canvas = document.getElementById("canvas");
-	ctxWidth = el.width;
-	ctxHeight = el.height;
-	ctx = el.getContext("3d");
+	ctxWidth = canvas.width;
+	ctxHeight = canvas.height;
+	ctx = canvas.getContext("3d");
 
 	window.requestAnimFrame =
 		window.requestAnimationFrame
@@ -17,7 +21,7 @@ engine.core.init = function(document, window) {
 		window.setTimeout(callback, 1000 / 60);
 	};
 
-	window.requestAnimFrame(each_frame);
+	window.requestAnimFrame(game.scene.tick);
 
 	console.log("  >=>       >====>     >=======> >=>        >=> ");
 	console.log("  >=>       >=>   >=>  >=>       >=>        >=> ");
