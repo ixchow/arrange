@@ -1,5 +1,7 @@
+engine = engine || {};
+engine.core = engine.core || {};
 
-function ldfwInit() {
+engine.core.init = function(document, window) {
 	var canvas = document.getElementById("canvas");
 	ctxWidth = el.width;
 	ctxHeight = el.height;
@@ -17,4 +19,3 @@ function ldfwInit() {
 
 	window.requestAnimFrame(each_frame);
 }
-window['ldfwInit'] = ldfwInit;
