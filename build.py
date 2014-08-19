@@ -15,7 +15,17 @@ class BuildJS:
 		print 'Building ' + self.path
 		result = BuildResult()
 		with open(self.path, 'rb') as f:
-			result.js = f.read()
+			result.js += ""
+			result.js += f.read()
+		return result
+
+class BuildNamespace:
+	def __init__(self, path):
+		self.path = path
+	def build(self):
+		print 'Building ' + self.path
+		result = BuildResult()
+		result.js = 'window.%s = {};\n' % self.path
 		return result
 
 builders = []
@@ -31,6 +41,7 @@ for _root, dirs, files in os.walk('.'):
 	elif root.startswith('tools'):
 		continue
 	else:
+		builders.append(BuildNamespace(root))
 		for file in files:
 			if file.startswith('.'):
 				continue

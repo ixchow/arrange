@@ -1,5 +1,3 @@
-engine = window.engine || {};
-
 (function(exports) {
 
 exports.init = function() {
