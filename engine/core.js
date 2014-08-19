@@ -1,5 +1,3 @@
-(function(exports) {
-
 exports.init = function() {
 	var canvas = document.getElementById("canvas");
 	ctxWidth = canvas.width;
@@ -26,5 +24,3 @@ exports.init = function() {
 	console.log("  >=>       >=>   >=>  >=>       >> >>    >===> ");
 	console.log("  >=======> >====>     >=>       >=>        >=> ");
 }
-
-})(engine.core = {});
