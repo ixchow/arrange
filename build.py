@@ -27,11 +27,9 @@ for _root, dirs, files in os.walk('.'):
 		  
 #somehow figure out the order to process the files in(?)
 
-# run the builders (TODO: could be done in parallel)
-builder_outputs = []
-for builder in builders:
-	output = builder.build()
-	builder_outputs.append(output)
+# run the builders
+import tools.BuildStrategy
+builder_outputs = tools.BuildStrategy.parallel(builders)
 
 #write an html file (as a stream)
 from tools.minify import minify
