@@ -14,8 +14,10 @@ exports.init = function() {
 		window.setTimeout(callback, 1000 / 60);
 	};
 
+	var scene = new game.scene1();
+
 	function tick() {
-		game.scene1.tick();
+		scene.tick();
 		window.requestAnimFrame(tick);
 	}
 
