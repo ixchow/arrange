@@ -16,7 +16,7 @@ exports.init = function() {
 		window.setTimeout(callback, 1000 / 60);
 	};
 
-	window.requestAnimFrame(game.scene.tick);
+	window.requestAnimFrame(game.scene1.tick);
 
 	console.log("  >=>       >====>     >=======> >=>        >=> ");
 	console.log("  >=>       >=>   >=>  >=>       >=>        >=> ");

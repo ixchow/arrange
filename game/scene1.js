@@ -2,4 +2,4 @@
 	exports.tick = function() {
 		console.log('tick');
 	};
-})(game.scene = {});
+})(game.scene1 = {});
