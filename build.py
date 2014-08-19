@@ -71,19 +71,11 @@ for output in builder_outputs:
 
 html = html.replace('$RESOURCES', resources_html)
 
-import shutil
+import subprocess
 
-if os.path.exists('tmp'):
-  shutil.rmtree('tmp')
-
-# shell out to closure-compiler
-os.mkdir('tmp')
-with open("tmp/in.js", "w") as in_js:
-	in_js.write(resources_js)
-
-#subprocess.call(["closure-compiler", "--js", "tmp/in.js", "--js_output_file", "tmp/out.js"])
-subprocess.call(["cp", "tmp/in.js", "tmp/out.js"])
-compiled_js = open("tmp/out.js", "rb").read()
+p = subprocess.Popen(['cat'], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+compiled_js, err = p.communicate(resources_js)
+p.wait
 
 html = html.replace('$JAVASCRIPT', compiled_js)
 
