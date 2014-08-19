@@ -1,10 +1,6 @@
 engine = window.engine || {};
 engine.core = engine.core || {};
 
-game = {};
-game.scene = {};
-game.scene.tick = function() {};
-
 engine.core.init = function() {
 	var canvas = document.getElementById("canvas");
 	ctxWidth = canvas.width;
