@@ -20,12 +20,21 @@ class BuildJS:
 resources = [] #tuple of ('name.space.name', builder)
 
 #walk directory structure, build list of files to process
-for root, dirs, files in os.walk('.'):
-	for file in files:
-	  	if file.endswith(".js"):
-			name = root.replace('/','.') + '.' + file[0:file.rfind('.')]
-			build = BuildJS(root + '/' + file)
-			resources.append((name, build))
+for _root, dirs, files in os.walk('.'):
+	root = os.path.relpath(_root)
+	#print root, dirs, files
+	if root.startswith('.'):
+		continue
+	elif root.startswith('tmp'):
+		continue
+	else:
+		for file in files:
+			if file.startswith('.'):
+				continue
+		  	elif file.endswith(".js"):
+				name = root.replace('/','.') + '.' + file[0:file.rfind('.')]
+				build = BuildJS(root + '/' + file)
+				resources.append((name, build))
 		  
 #somehow figure out the order to process the files in(?)
 
@@ -33,6 +42,7 @@ for root, dirs, files in os.walk('.'):
 builder_outputs = []
 for r in resources:
 	builder = r[1]
+	print 'Building ' + r[0]
 	output = builder.build()
 	builder_outputs.append(output)
 
@@ -46,7 +56,7 @@ for output in builder_outputs:
 	resources_html += output.html
 	resources_js += output.js
 
-html.replace('$RESOURCES', resources_html)
+html = html.replace('$RESOURCES', resources_html)
 
 import shutil
 
@@ -62,8 +72,8 @@ with open("tmp/in.js", "w") as in_js:
 subprocess.call(["cp", "tmp/in.js", "tmp/out.js"])
 compiled_js = open("tmp/out.js", "rb").read()
 
-html.replace('$JAVASCRIPT', compiled_js)
-  
+html = html.replace('$JAVASCRIPT', compiled_js)
+
 f = open('index.html', 'wb')
 f.write(html)
 f.close()
