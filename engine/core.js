@@ -1,7 +1,8 @@
 engine = window.engine || {};
-engine.core = engine.core || {};
 
-engine.core.init = function() {
+(function(exports) {
+
+exports.init = function() {
 	var canvas = document.getElementById("canvas");
 	ctxWidth = canvas.width;
 	ctxHeight = canvas.height;
@@ -27,3 +28,5 @@ engine.core.init = function() {
 	console.log("  >=>       >=>   >=>  >=>       >> >>    >===> ");
 	console.log("  >=======> >====>     >=>       >=>        >=> ");
 }
+
+})(engine.core = {});
