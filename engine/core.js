@@ -18,4 +18,12 @@ engine.core.init = function(document, window) {
 	};
 
 	window.requestAnimFrame(each_frame);
+
+	console.log("  >=>       >====>     >=======> >=>        >=> ");
+	console.log("  >=>       >=>   >=>  >=>       >=>        >=> ");
+	console.log("  >=>       >=>    >=> >=>       >=>   >>   >=> ");
+	console.log("  >=>       >=>    >=> >=====>   >=>  >=>   >=> ");
+	console.log("  >=>       >=>    >=> >=>       >=> >> >=> >=> ");
+	console.log("  >=>       >=>   >=>  >=>       >> >>    >===> ");
+	console.log("  >=======> >====>     >=>       >=>        >=> ");
 }
