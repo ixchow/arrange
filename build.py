@@ -28,6 +28,8 @@ for _root, dirs, files in os.walk('.'):
 		continue
 	elif root.startswith('tmp'):
 		continue
+	elif root.startswith('tools'):
+		continue
 	else:
 		for file in files:
 			if file.startswith('.'):
