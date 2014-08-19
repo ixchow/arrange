@@ -16,6 +16,8 @@ exports.init = function() {
 
 	var scene = new game.scene1();
 
+	scene.init();
+
 	function tick() {
 		scene.tick();
 		window.requestAnimFrame(tick);
