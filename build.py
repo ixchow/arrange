@@ -73,7 +73,14 @@ html = html.replace('$RESOURCES', resources_html)
 
 import subprocess
 
-p = subprocess.Popen(['cat'], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+if subprocess.call(['which', '-s', 'uglifyjs']) == 0:
+	jscmd = ['uglifyjs']
+else:
+	print "!!! WARNING !!! uglifyjs is not installed; skipping js minification"
+	print "!!! Try `npm install -g uglify-js`"
+	jscmd = ['cat']
+
+p = subprocess.Popen(jscmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
 compiled_js, err = p.communicate(resources_js)
 p.wait
 
