@@ -34,7 +34,7 @@ for builder in builders:
 	builder_outputs.append(output)
 
 #write an html file (as a stream)
-import subprocess
+from tools.minify import minify
 
 html = open('tools/skel.html', 'r').read()
 resources_html = ''
@@ -44,21 +44,7 @@ for output in builder_outputs:
 	resources_js += output.js
 
 html = html.replace('$RESOURCES', resources_html)
-
-import subprocess
-
-if subprocess.call(['which', '-s', 'uglifyjs']) == 0:
-	jscmd = ['uglifyjs']
-else:
-	print "!!! WARNING !!! uglifyjs is not installed; skipping js minification"
-	print "!!! Try `npm install -g uglify-js`"
-	jscmd = ['cat']
-
-p = subprocess.Popen(jscmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-compiled_js, err = p.communicate(resources_js)
-p.wait
-
-html = html.replace('$JAVASCRIPT', compiled_js)
+html = html.replace('$JAVASCRIPT', minify(resources_js))
 
 f = open('index.html', 'wb')
 f.write(html)
