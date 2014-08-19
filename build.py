@@ -12,12 +12,13 @@ class BuildJS:
 	def __init__(self, path):
 		self.path = path
 	def build(self):
+		print 'Building ' + self.path
 		result = BuildResult()
 		with open(self.path, 'rb') as f:
 			result.js = f.read()
 		return result
 
-resources = [] #tuple of ('name.space.name', builder)
+builders = []
 
 #walk directory structure, build list of files to process
 for _root, dirs, files in os.walk('.'):
@@ -32,17 +33,14 @@ for _root, dirs, files in os.walk('.'):
 			if file.startswith('.'):
 				continue
 		  	elif file.endswith(".js"):
-				name = root.replace('/','.') + '.' + file[0:file.rfind('.')]
-				build = BuildJS(root + '/' + file)
-				resources.append((name, build))
+				builder = BuildJS(root + '/' + file)
+				builders.append(builder)
 		  
 #somehow figure out the order to process the files in(?)
 
 # run the builders (TODO: could be done in parallel)
 builder_outputs = []
-for r in resources:
-	builder = r[1]
-	print 'Building ' + r[0]
+for builder in builders:
 	output = builder.build()
 	builder_outputs.append(output)
 
