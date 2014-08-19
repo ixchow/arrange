@@ -46,7 +46,8 @@ for output in builder_outputs:
 	resources_html += output.html
 	resources_js += output.js
 
-html.replace('$RESOURCES', resources_html)
+html = html.replace('$RESOURCES', resources_html)
+html = html.replace('$HEAD', '')
 
 import shutil
 
