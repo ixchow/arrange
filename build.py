@@ -50,7 +50,8 @@ html.replace('$RESOURCES', resources_html)
 
 import shutil
 
-shutil.rmtree('tmp')
+if os.path.exists('tmp'):
+  shutil.rmtree('tmp')
 
 # shell out to closure-compiler
 os.mkdir('tmp')
