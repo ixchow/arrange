@@ -20,7 +20,7 @@ a {
 }
 </style>
 </head>
-<body onload="engine.core.init();">
+<body onload="engine.core.init(function() { return new game.scene1() });">
 <div id="game">
 <canvas id="canvas" width="1280" height="720"></canvas>
 </div>
