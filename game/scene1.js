@@ -35,7 +35,7 @@ function perspective(fovy, aspect, near, far) {
 	);
 }
 
-//Test:
+/*
 (function(){
 	var MV = lookAt(new Vec3(10.0, 10.0, 10.0), new Vec3(0.0, 0.0, 0.0), new Vec3(0.0, 0.0, 1.0));
 	var P = perspective(60.0, 1.0, 0.1, 100.0);
@@ -43,11 +43,14 @@ function perspective(fovy, aspect, near, far) {
 	console.log(P);
 	console.log(P.times(MV));
 }());
-
+*/
 
 exports.prototype.update = function(elapsed) {
 	this.fade += elapsed;
 	if (this.fade > 1.0) this.fade = this.fade % 1.0;
+
+	this.spin += elapsed;
+	if (this.spin > Math.Pi * 2.0) this.spin = this.spin % (Math.Pi * 2.0);
 };
 
 exports.prototype.enter = function() {
@@ -68,7 +71,7 @@ exports.prototype.draw = function() {
 
 	gl.useProgram(s.program);
 
-	var MV = lookAt(new Vec3(10.0, 10.0, 10.0), new Vec3(0.0, 0.0, 0.0), new Vec3(0.0, 0.0, 1.0));
+	var MV = lookAt(new Vec3(10.0 * Math.cos(this.spin), 10.0 * Math.sin(this.spin), 10.0), new Vec3(0.0, 0.0, 0.0), new Vec3(0.0, 0.0, 1.0));
 	var P = perspective(60.0, 1.0, 0.1, 100.0);
 
 	gl.uniformMatrix4fv(s.uMVP.location, false, P.times(MV));
