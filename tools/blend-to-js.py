@@ -120,6 +120,7 @@ for obj in bpy.data.objects:
 
 #Using our own dump function so we can create Float32Arrays directly:
 def dump(data):
+	sys.stderr.write("{\n")
 	first = True
 	for k, v in sorted(data.items()):
 		if first:
@@ -128,17 +129,16 @@ def dump(data):
 			sys.stderr.write(",\n")
 		sys.stderr.write(k + ":")
 		if type(v) == dict:
-			sys.stderr.write("{\n")
 			dump(v)
-			sys.stderr.write("}")
 		elif type(v) == list:
 			sys.stderr.write("new Float32Array([")
 			for i in range(0,len(v)):
 				if i > 0: sys.stderr.write(",")
 				if i % 6 == 0: sys.stderr.write("\n")
-				sys.stderr.write("%g8" % v[i])
+				sys.stderr.write("%8g" % v[i])
 			sys.stderr.write("])")
 		else:
 			raise Exception("Don't know how to deal with something that isn't a list or dict.")
+	sys.stderr.write("}")
 
 dump(data)
