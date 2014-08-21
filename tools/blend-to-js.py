@@ -3,6 +3,16 @@ import math
 import sys
 import json
 
+filename = None
+for i in range(0, len(sys.argv)):
+	if sys.argv[i] == '--':
+		if len(sys.argv) == i + 2:
+			filename = sys.argv[i+1]
+
+if filename == None:
+	print("Please pass '-- <outfile>' after the script name", file=sys.stderr)
+	bpy.ops.wm.quit_blender()
+
 #Write a mesh with just position:
 def mesh_data(obj):
 	bpy.ops.object.mode_set(mode='OBJECT')
@@ -119,26 +129,29 @@ for obj in bpy.data.objects:
 
 
 #Using our own dump function so we can create Float32Arrays directly:
-def dump(data):
-	sys.stderr.write("{\n")
+def dump(out, data):
+	def write(s):
+		out.write(bytes(s, "UTF-8"))
+	write("{\n")
 	first = True
 	for k, v in sorted(data.items()):
 		if first:
 			first = False
 		else:
-			sys.stderr.write(",\n")
-		sys.stderr.write(k + ":")
+			write(",\n")
+		write(k + ":")
 		if type(v) == dict:
-			dump(v)
+			dump(out, v)
 		elif type(v) == list:
-			sys.stderr.write("new Float32Array([")
+			write("new Float32Array([")
 			for i in range(0,len(v)):
-				if i > 0: sys.stderr.write(",")
-				if i % 6 == 0: sys.stderr.write("\n")
-				sys.stderr.write("%8g" % v[i])
-			sys.stderr.write("])")
+				if i > 0: write(",")
+				if i % 6 == 0: write("\n")
+				write("%8g" % v[i])
+			write("])")
 		else:
 			raise Exception("Don't know how to deal with something that isn't a list or dict.")
-	sys.stderr.write("}")
+	write("}")
 
-dump(data)
+with open(filename, 'wb') as f:
+	dump(f, data)

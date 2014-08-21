@@ -36,13 +36,15 @@ class BuildMesh:
 	def __init__(self, path):
 		self.path = path
 		self.namespace = path[0:path.rfind('.')].replace('/','.')
+		self.tmp_path = "tmp/" + self.namespace + ".mesh"
 		if BuildMesh.blender == None:
 			if subprocess.call(['which', '-s', 'blender']) == 0:
 				BuildMesh.blender = 'blender'
 			else:
 				blender_paths = [
 					'/Applications/blender.app/Contents/MacOS/blender',
-					'~/Blender/blender.app/Contents/MacOS/blender'
+					'~/Blender/blender.app/Contents/MacOS/blender',
+					'~/blender-2.71-linux-glibc211-x86_64/blender'
 					]
 				for blender_path in blender_paths:
 					blender_path = os.path.expanduser(blender_path)
@@ -59,11 +61,11 @@ class BuildMesh:
 	def build(self):
 		print 'Building ' + self.path
 		result = BuildResult()
-		blender_cmd = [BuildMesh.blender, "--background", self.path, "--python", "tools/blend-to-js.py"]
-		p = subprocess.Popen(blender_cmd, stderr=subprocess.PIPE)
-		output, err = p.communicate()
-		p.wait
-		result.js = "window." + self.namespace + " = " + err + ";\n";
+		blender_cmd = [BuildMesh.blender, "--background", self.path, "--python", "tools/blend-to-js.py", "--", self.tmp_path]
+		if subprocess.call(blender_cmd) != 0:
+			raise Exception("Failed to execute `" + " ".join(blender_cmd) + "`")
+		with open(self.tmp_path, 'rb') as f:
+			result.js = "window." + self.namespace + " = " + f.read() + ";\n";
 		return result
 
 class BuildShader:
