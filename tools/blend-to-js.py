@@ -103,4 +103,4 @@ def write_mesh(out, name):
 				assert(len(struct.pack('f',v)) == 4)
 
 for obj in bpy.data.objects:
-	print obj
+	print(obj)
