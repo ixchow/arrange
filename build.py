@@ -16,6 +16,8 @@ for _root, dirs, files in os.walk('.'):
 		continue
 	elif root.startswith('tools'):
 		continue
+	elif root.startswith('node_modules'):
+		continue
 	else:
 		builders.append(BuildNamespace(root))
 		for file in files:
