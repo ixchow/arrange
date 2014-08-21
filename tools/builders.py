@@ -67,3 +67,17 @@ class BuildShader:
 		#result.js += "})({});\n"
 		return result
 
+
+class BuildMML:
+	def __init__(self, path):
+		self.path = path
+		self.namespace = path[0:path.rfind('.')].replace('/','.')
+	def build(self):
+		print 'Building ' + self.path
+		result = BuildResult()
+		with open(self.path, 'rb') as f:
+			mml = f.read()
+			mml = mml.replace("\n", " ")
+			mmls = mml.split(';')
+			result.js = "{0} = [\"{1}\"];\n".format(self.namespace, '","'.join(mmls))
+		return result

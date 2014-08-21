@@ -2,7 +2,7 @@
 
 import os
 
-from tools.builders import BuildNamespace, BuildJS, BuildMesh, BuildShader
+from tools.builders import BuildNamespace, BuildJS, BuildMesh, BuildShader, BuildMML
 
 builders = []
 
@@ -30,6 +30,8 @@ for _root, dirs, files in os.walk('.'):
 				continue #blender creates backups, which one can ignore
 		  	elif file.endswith(".glsl"):
 				builders.append(BuildShader(root + '/' + file))
+			elif file.endswith(".mml"):
+				builders.append(BuildMML(root + '/' + file))
 		  
 #somehow figure out the order to process the files in(?)
 
