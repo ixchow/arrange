@@ -79,5 +79,6 @@ class BuildMML:
 			mml = f.read()
 			mml = mml.replace("\n", " ")
 			mmls = mml.split(';')
-			result.js = "{0} = [\"{1}\"];\n".format(self.namespace, '","'.join(mmls))
+			mml_js = '["{0}"]'.format('","'.join(mmls))
+			result.js = '{0} = function(synth) {{\nreturn T("mml", {{mml:{1}}}, synth.in).set({{buddies:synth.out}});\n}}\n'.format(self.namespace, mml_js)
 		return result
