@@ -1,6 +1,6 @@
 exports = function() {
 	this.fade = 0.0;
-	this.mesh = meshes.tree.Icosphere;
+	this.mesh = meshes.tree.trunk;
 	return this;
 }
 
@@ -21,7 +21,7 @@ exports.prototype.draw = function() {
 
 	var vertsBuffer = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, vertsBuffer);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array( this.mesh.verts3 ), gl.STREAM_DRAW);
+	gl.bufferData(gl.ARRAY_BUFFER, this.mesh.verts3, gl.STREAM_DRAW);
 
 	var s = shaders.solid;
 
