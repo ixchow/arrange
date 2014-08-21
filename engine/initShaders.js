@@ -118,7 +118,7 @@ exports = function() {
 		for (var i = 0; i < nu; ++i) {
 			var u = gl.getActiveUniform(s.program, i);
 			s[u.name] = {
-				location:i,
+				location:gl.getUniformLocation(s.program, u.name),
 				type:a.type,
 				size:a.size
 			};
