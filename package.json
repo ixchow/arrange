@@ -1,0 +1,8 @@
+{
+  "name": "ldfw",
+  "version": "0.0.0",
+  "devDependencies": {
+    "minimist": "^1.1.0",
+    "timbre": "^14.6.23"
+  }
+}
