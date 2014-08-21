@@ -63,7 +63,7 @@ class BuildMesh:
 		p = subprocess.Popen(blender_cmd, stderr=subprocess.PIPE)
 		output, err = p.communicate()
 		p.wait
-		result.js = self.namespace + " = " + err + ";\n";
+		result.js = "window." + self.namespace + " = " + err + ";\n";
 		return result
 
 class BuildShader:

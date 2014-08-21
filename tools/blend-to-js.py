@@ -114,5 +114,7 @@ for obj in bpy.data.objects:
 				obj_data[key] = {}
 			obj_data = obj_data[key]
 		mesh = mesh_data(obj)
+		for k, v in mesh.items():
+			obj_data[k] = v
 		
 sys.stderr.write(json.dumps(data) + "\n")
