@@ -10,8 +10,8 @@ exports.prototype.update = function(elapsed) {
 
 exports.prototype.enter = function() {
   //JIM: let's not do this until we have mute available
-	// engine.play(music.gymnopedie, synths.bells);
-	// engine.play(music.khoomii, synths.vowels);
+	// engine.music.play(music.gymnopedie, synths.bells);
+	// engine.music.play(music.khoomii, synths.vowels);
 };
 
 exports.prototype.draw = function() {
