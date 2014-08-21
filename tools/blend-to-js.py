@@ -116,5 +116,29 @@ for obj in bpy.data.objects:
 		mesh = mesh_data(obj)
 		for k, v in mesh.items():
 			obj_data[k] = v
-		
-sys.stderr.write(json.dumps(data) + "\n")
+
+
+#Using our own dump function so we can create Float32Arrays directly:
+def dump(data):
+	first = True
+	for k, v in sorted(data.items()):
+		if first:
+			first = False
+		else:
+			sys.stderr.write(",\n")
+		sys.stderr.write(k + ":")
+		if type(v) == dict:
+			sys.stderr.write("{\n")
+			dump(v)
+			sys.stderr.write("}")
+		elif type(v) == list:
+			sys.stderr.write("new Float32Array([")
+			for i in range(0,len(v)):
+				if i > 0: sys.stderr.write(",")
+				if i % 6 == 0: sys.stderr.write("\n")
+				sys.stderr.write("%g8" % v[i])
+			sys.stderr.write("])")
+		else:
+			raise Exception("Don't know how to deal with something that isn't a list or dict.")
+
+dump(data)
