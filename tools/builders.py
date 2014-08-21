@@ -59,11 +59,11 @@ class BuildMesh:
 	def build(self):
 		print 'Building ' + self.path
 		result = BuildResult()
-		blender_cmd = [BuildMesh.blender, "--background", "--python", "tools/blend-to-js-aaron.py", "--", "meshes/tree.blend", "Icosphere", "meshes.tree"]
+		blender_cmd = [BuildMesh.blender, "--background", self.path, "--python", "tools/blend-to-js.py"]
 		p = subprocess.Popen(blender_cmd, stderr=subprocess.PIPE)
 		output, err = p.communicate()
 		p.wait
-		result.js = "{0} = {1};\n".format(self.namespace, err)
+		result.js = self.namespace + " = " + err + ";\n";
 		return result
 
 class BuildShader:

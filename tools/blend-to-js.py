@@ -1,14 +1,11 @@
 import bpy
 import math
-import struct
+import sys
+import json
 
 #Write a mesh with just position:
-def write_mesh(out, name):
-	print("Writing '" + name + "'")
+def mesh_data(obj):
 	bpy.ops.object.mode_set(mode='OBJECT')
-
-	assert(name in bpy.data.objects)
-	obj = bpy.data.objects[name]
 	obj.data = obj.data.copy() #"make single user" (?)
 	bpy.context.scene.layers = obj.layers
 	#First, triangulate the mesh:
@@ -17,8 +14,8 @@ def write_mesh(out, name):
 	bpy.context.scene.objects.active = obj
 	bpy.ops.object.mode_set(mode='EDIT')
 	bpy.ops.mesh.select_all(action='SELECT')
-	# AARON: use_beauty wasn't recognized
-	# bpy.ops.mesh.quads_convert_to_tris(use_beauty=True)
+	#use_beauty went away in 2.70, now use:
+	bpy.ops.mesh.quads_convert_to_tris(quad_method='BEAUTY', ngon_method='BEAUTY')
 	bpy.ops.object.mode_set(mode='OBJECT')
 
 	#Consider possibly using code to bake color:
@@ -32,8 +29,7 @@ def write_mesh(out, name):
 	#if do_flags & BakeTransform:
 	if True:
 		for poly in obj.data.polygons:
-			# AARON: probably want to put this back:
-			# assert(len(poly.vertices) == 3)
+			assert(len(poly.vertices) == 3)
 			for vi in poly.vertices:
 				xf = obj.matrix_world * obj.data.vertices[vi].co
 				verts.append((xf[0],xf[1],xf[2]))
@@ -83,20 +79,15 @@ def write_mesh(out, name):
 	#if do_flags & DoTexture0:
 	#	shrink_attrib(texcoords)
 
-	#buffer_size = len(verts) * len(verts[0]) * 4
+	#TODO: consider tristripping
 
-	#if do_flags & DoColor:
-	#	buffer_size += len(colors) * len(colors[0]) * 1
+	data = {'verts3' : [] }
 
-	#if do_flags & DoTexture0:
-	#	buffer_size += len(texcoords) * len(texcoords[0]) * 4
-	
 	#Write mesh as triangles:
 	for i in range(0,len(verts)):
-		for v in verts[i]:
-			print(verts)
-			out.write(struct.pack('f',v))
-			assert(len(struct.pack('f',v)) == 4)
+		data['verts3'].extend(verts[i])
+			#out.write(struct.pack('f',v))
+			#assert(len(struct.pack('f',v)) == 4)
 		# if do_flags & DoColor:
 		# 	for v in colors[i]:
 		# 		blob.write(struct.pack('B',v))
@@ -105,7 +96,23 @@ def write_mesh(out, name):
 		# 	for v in texcoords[i]:
 		# 		blob.write(struct.pack('f',v))
 		# 		assert(len(struct.pack('f',v)) == 4)
+	return data
 
-write_mesh(open("Cube.verts", "wb"), "Cube")
+data = {}
 for obj in bpy.data.objects:
-	print(obj)
+	print(obj.name)
+	if obj.type == 'MESH':
+		path = []
+		at = obj
+		while at != None:
+			path.append(at.name)
+			at = at.parent
+		parent_data = data
+		while len(path) > 1:
+			key = path.pop()
+			if key not in parent_data:
+				parent_data[key] = {}
+			parent_data = parent_data[key]
+		key = path[0]
+		parent_data[key] = mesh_data(obj)
+sys.stderr.write(json.dumps(data) + "\n")
