@@ -25,11 +25,16 @@ exports.init = function(onstart) {
 	if (!gl) {
 		alert("Unable to initialize WebGL.");
 		//TODO: some sort of error handling that's a bit more graceful.
+		return;
 	}
 
 	gl.clearColor(0.0, 0.0, 1.0, 1.0);
 	gl.clear(gl.COLOR_BUFFER_BIT);
 
+	//--------------------------
+	//init various openGL data:
+	if (!engine.initShaders()) return;
+	if (!engine.initMeshes()) return;
 
 	//--------------------------
 	//set up scene handling:
