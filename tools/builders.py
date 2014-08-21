@@ -34,12 +34,21 @@ class BuildMesh:
 		self.namespace = path[0:path.rfind('.')].replace('/','.')
 	def build(self):
 		print 'Building ' + self.path
+		import subprocess
+		import os.path
 		result = BuildResult()
-		#TODO: launch tools/blend-to-json.py
-		result.js += "%s = (function(exports) {\n" % self.namespace
-		result.js += "exports.verts3 = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];\n"
-		result.js += "\nreturn exports;\n"
-		result.js += "})({});\n"
+		blender_cmd = [None, "--background", "--python", "tools/blend-to-js-aaron.py", "--", "meshes/tree.blend", "Icosphere", "meshes.tree"]
+		mac_blender = "/Applications/blender.app/Contents/MacOS/blender"
+		if os.path.isfile(mac_blender):
+			blender_cmd[0] = mac_blender
+		elif subprocess.call(['which', '-s', 'blender']) == 0:
+			blender_cmd[0] = "blender"
+		else:
+			raise Exception("blender not found on $PATH or in /Applications")
+		p = subprocess.Popen(blender_cmd, stderr=subprocess.PIPE)
+		output, err = p.communicate()
+		p.wait
+		result.js = "{0} = {1};\n".format(self.namespace, err)
 		return result
 
 class BuildShader:
