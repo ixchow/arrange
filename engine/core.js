@@ -42,7 +42,7 @@ exports.init = function(onstart) {
 	;
 
 	if (!requestAnimFrame) {
-		alert("browser does not support requestAnimationFrame");
+		alert("browser does not appear to support requestAnimationFrame");
 		return;
 	}
 
@@ -79,6 +79,8 @@ exports.init = function(onstart) {
 	}
 
 	requestAnimFrame(animate);
+
+	//---------------------------------------------------
 
 	console.log("  >=>       >====>     >=======> >=>        >=> ");
 	console.log("  >=>       >=>   >=>  >=>       >=>        >=> ");

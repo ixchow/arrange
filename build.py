@@ -2,7 +2,7 @@
 
 import os
 
-from tools.builders import BuildNamespace, BuildJS
+from tools.builders import BuildNamespace, BuildJS, BuildMesh, BuildShader
 
 builders = []
 
@@ -24,6 +24,12 @@ for _root, dirs, files in os.walk('.'):
 		  	elif file.endswith(".js"):
 				builder = BuildJS(root + '/' + file)
 				builders.append(builder)
+		  	elif file.endswith(".blend"):
+				builders.append(BuildMesh(root + '/' + file))
+		  	elif file.endswith(".blend1"):
+				continue #blender creates backups, which one can ignore
+		  	elif file.endswith(".glsl"):
+				builders.append(BuildShader(root + '/' + file))
 		  
 #somehow figure out the order to process the files in(?)
 

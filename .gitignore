@@ -3,3 +3,4 @@ build
 /tmp/
 /index.html
 *.pyc
+*.blend[1-9]

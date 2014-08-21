@@ -5,7 +5,7 @@ exports = function() {
 
 exports.prototype.update = function(elapsed) {
 	this.fade += elapsed;
-	if (this.fade > 1.0) this.fade -= 1.0;
+	if (this.fade > 1.0) this.fade = this.fade % 1.0;
 };
 
 exports.prototype.enter = function() {
