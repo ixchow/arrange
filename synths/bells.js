@@ -15,6 +15,7 @@ master = T("eq", {params:{lf:[800, 0.5, -2], mf:[6400, 0.5, 4]}}, master);
 master = T("phaser", {freq:mod, Q:2, steps:4}, master);
 master = T("delay", {time:"BPM60 L16", fb:0.65, mix:0.25}, master);
 
-exports = T("mml", {mml:music.gymnope}, synth).on("ended", function() {
-  this.stop();
-}).set({buddies:master});
+exports = {
+	in: synth,
+	out: master
+};

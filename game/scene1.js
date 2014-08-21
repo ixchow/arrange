@@ -9,8 +9,9 @@ exports.prototype.update = function(elapsed) {
 };
 
 exports.prototype.enter = function() {
-	var musicName = ['gymnopedie', 'khoomii'][Math.floor(Math.random()*2)];
-	//music[musicName].start(); //JIM: let's not do this until we have mute available
+  //JIM: let's not do this until we have mute available
+	// engine.play(music.gymnopedie, synths.bells);
+	// engine.play(music.khoomii, synths.vowels);
 };
 
 exports.prototype.draw = function() {
