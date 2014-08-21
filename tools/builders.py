@@ -1,3 +1,6 @@
+import subprocess
+import os.path
+
 class BuildResult:
 	def __init__(self):
 		self.html = ""
@@ -29,22 +32,34 @@ class BuildNamespace:
 
 class BuildMesh:
 	"""This will somehow build meshes from blender files"""
+	blender = None
 	def __init__(self, path):
 		self.path = path
 		self.namespace = path[0:path.rfind('.')].replace('/','.')
+		if BuildMesh.blender == None:
+			if subprocess.call(['which', '-s', 'blender']) == 0:
+				BuildMesh.blender = 'blender'
+			else:
+				blender_paths = [
+					'/Applications/blender.app/Contents/MacOS/blender',
+					'~/Blender/blender.app/Contents/MacOS/blender'
+					]
+				for blender_path in blender_paths:
+					blender_path = os.path.expanduser(blender_path)
+					if os.path.isfile(blender_path):
+						BuildMesh.blender = blender_path
+						break
+
+			if BuildMesh.blender == None:
+				raise Exception("blender not found on $PATH or in [" + ', '.join(blender_paths) + "]")
+			else:
+				print "Using blender '" + BuildMesh.blender + "'."
+				
+
 	def build(self):
 		print 'Building ' + self.path
-		import subprocess
-		import os.path
 		result = BuildResult()
-		blender_cmd = [None, "--background", "--python", "tools/blend-to-js-aaron.py", "--", "meshes/tree.blend", "Icosphere", "meshes.tree"]
-		mac_blender = "/Applications/blender.app/Contents/MacOS/blender"
-		if os.path.isfile(mac_blender):
-			blender_cmd[0] = mac_blender
-		elif subprocess.call(['which', '-s', 'blender']) == 0:
-			blender_cmd[0] = "blender"
-		else:
-			raise Exception("blender not found on $PATH or in /Applications")
+		blender_cmd = [BuildMesh.blender, "--background", "--python", "tools/blend-to-js-aaron.py", "--", "meshes/tree.blend", "Icosphere", "meshes.tree"]
 		p = subprocess.Popen(blender_cmd, stderr=subprocess.PIPE)
 		output, err = p.communicate()
 		p.wait
