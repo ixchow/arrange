@@ -78,5 +78,6 @@ class BuildMML:
 		with open(self.path, 'rb') as f:
 			mml = f.read()
 			mml = mml.replace("\n", " ")
-			result.js = "{0} = \"{1}\";\n".format(self.namespace, mml)
+			mmls = mml.split(';')
+			result.js = "{0} = [\"{1}\"];\n".format(self.namespace, '","'.join(mmls))
 		return result

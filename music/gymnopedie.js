@@ -1,6 +1,5 @@
 // Example from http://mohayonao.github.io/timbre.js/satie.html
 
-var mml0, mml1;
 var env   = T("adsr", {d:3000, s:0, r:600});
 var synth = T("SynthDef", {mul:0.45, poly:8});
 
@@ -16,9 +15,6 @@ master = T("eq", {params:{lf:[800, 0.5, -2], mf:[6400, 0.5, 4]}}, master);
 master = T("phaser", {freq:mod, Q:2, steps:4}, master);
 master = T("delay", {time:"BPM60 L16", fb:0.65, mix:0.25}, master);
 
-mml0 = music.g1;
-mml1 = music.g2;
-
-exports = T("mml", {mml:[mml0, mml1]}, synth).on("ended", function() {
+exports = T("mml", {mml:music.gymnope}, synth).on("ended", function() {
   this.stop();
 }).set({buddies:master});
