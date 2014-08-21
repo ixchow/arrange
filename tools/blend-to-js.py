@@ -107,12 +107,12 @@ for obj in bpy.data.objects:
 		while at != None:
 			path.append(at.name)
 			at = at.parent
-		parent_data = data
-		while len(path) > 1:
+		obj_data = data
+		while len(path):
 			key = path.pop()
-			if key not in parent_data:
-				parent_data[key] = {}
-			parent_data = parent_data[key]
-		key = path[0]
-		parent_data[key] = mesh_data(obj)
+			if key not in obj_data:
+				obj_data[key] = {}
+			obj_data = obj_data[key]
+		mesh = mesh_data(obj)
+		
 sys.stderr.write(json.dumps(data) + "\n")
