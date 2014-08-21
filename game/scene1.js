@@ -61,26 +61,37 @@ exports.prototype.enter = function() {
 
 exports.prototype.draw = function() {
 	gl.clearColor(0.0, 0.0, this.fade, 1.0);
-	gl.clear(gl.COLOR_BUFFER_BIT);
+	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+	gl.enable(gl.DEPTH_TEST);
 
 	var vertsBuffer = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, vertsBuffer);
-	gl.bufferData(gl.ARRAY_BUFFER, this.mesh.verts3, gl.STREAM_DRAW);
 
 	var s = shaders.solid;
 
 	gl.useProgram(s.program);
 
-	var MV = lookAt(new Vec3(10.0 * Math.cos(this.spin), 10.0 * Math.sin(this.spin), 10.0), new Vec3(0.0, 0.0, 0.0), new Vec3(0.0, 0.0, 1.0));
-	var P = perspective(60.0, 1.0, 0.1, 100.0);
+	var MV = lookAt(new Vec3(Math.cos(this.spin), Math.sin(this.spin), 1.0).times(6.0), new Vec3(0.0, 0.0, 0.0), new Vec3(0.0, 0.0, 1.0));
+	var P = perspective(45.0, engine.core.Size.x / engine.core.Size.y, 0.1, 100.0);
 
 	gl.uniformMatrix4fv(s.uMVP.location, false, P.times(MV));
 
 	gl.enableVertexAttribArray(s.aVertex.location);
 	gl.vertexAttribPointer(s.aVertex.location, 3, gl.FLOAT, false, 0, 0);
-	gl.vertexAttrib4f(s.aColor.location, 0.0, 1.0, 0.0, 1.0);
 
+
+	gl.vertexAttrib4f(s.aColor.location, 0.5, 0.5, 0.0, 1.0);
+
+	gl.bufferData(gl.ARRAY_BUFFER, this.mesh.verts3, gl.STREAM_DRAW);
 	gl.drawArrays(gl.TRIANGLES, 0, this.mesh.verts3.length / 3);
+
+	gl.vertexAttrib4f(s.aColor.location, 0.2, 0.7, 0.0, 1.0);
+	gl.bufferData(gl.ARRAY_BUFFER, this.mesh.leaves1.verts3, gl.STREAM_DRAW);
+	gl.drawArrays(gl.TRIANGLES, 0, this.mesh.leaves1.verts3.length / 3);
+
+	gl.vertexAttrib4f(s.aColor.location, 0.1, 0.8, 0.1, 1.0);
+	gl.bufferData(gl.ARRAY_BUFFER, this.mesh.leaves2.verts3, gl.STREAM_DRAW);
+	gl.drawArrays(gl.TRIANGLES, 0, this.mesh.leaves2.verts3.length / 3);
 
 	gl.disableVertexAttribArray(s.aVertex.location);
 	gl.deleteBuffer(vertsBuffer);
