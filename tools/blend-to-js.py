@@ -1,5 +1,6 @@
 import bpy
 import math
+import struct
 
 #Write a mesh with just position:
 def write_mesh(out, name):
@@ -16,7 +17,8 @@ def write_mesh(out, name):
 	bpy.context.scene.objects.active = obj
 	bpy.ops.object.mode_set(mode='EDIT')
 	bpy.ops.mesh.select_all(action='SELECT')
-	bpy.ops.mesh.quads_convert_to_tris(use_beauty=True)
+	# AARON: use_beauty wasn't recognized
+	# bpy.ops.mesh.quads_convert_to_tris(use_beauty=True)
 	bpy.ops.object.mode_set(mode='OBJECT')
 
 	#Consider possibly using code to bake color:
@@ -30,15 +32,16 @@ def write_mesh(out, name):
 	#if do_flags & BakeTransform:
 	if True:
 		for poly in obj.data.polygons:
-			assert(len(poly.vertices) == 3)
+			# AARON: probably want to put this back:
+			# assert(len(poly.vertices) == 3)
 			for vi in poly.vertices:
 				xf = obj.matrix_world * obj.data.vertices[vi].co
 				verts.append((xf[0],xf[1],xf[2]))
-	else:
-		for poly in obj.data.polygons:
-			assert(len(poly.vertices) == 3)
-			for vi in poly.vertices:
-				verts.append(tuple(obj.data.vertices[vi].co))
+	# else:
+	# 	for poly in obj.data.polygons:
+	# 		assert(len(poly.vertices) == 3)
+	# 		for vi in poly.vertices:
+	# 			verts.append(tuple(obj.data.vertices[vi].co))
 
 	#if do_flags & DoColor:
 	#	colors = []
@@ -91,16 +94,18 @@ def write_mesh(out, name):
 	#Write mesh as triangles:
 	for i in range(0,len(verts)):
 		for v in verts[i]:
+			print(verts)
 			out.write(struct.pack('f',v))
 			assert(len(struct.pack('f',v)) == 4)
-		if do_flags & DoColor:
-			for v in colors[i]:
-				blob.write(struct.pack('B',v))
-				assert(len(struct.pack('B',v)) == 1)
-		if do_flags & DoTexture0:
-			for v in texcoords[i]:
-				blob.write(struct.pack('f',v))
-				assert(len(struct.pack('f',v)) == 4)
+		# if do_flags & DoColor:
+		# 	for v in colors[i]:
+		# 		blob.write(struct.pack('B',v))
+		# 		assert(len(struct.pack('B',v)) == 1)
+		# if do_flags & DoTexture0:
+		# 	for v in texcoords[i]:
+		# 		blob.write(struct.pack('f',v))
+		# 		assert(len(struct.pack('f',v)) == 4)
 
+write_mesh(open("Cube.verts", "wb"), "Cube")
 for obj in bpy.data.objects:
 	print(obj)
