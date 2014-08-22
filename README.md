@@ -16,7 +16,10 @@ If we want to get something showing as soon as possible, would it make sense to 
 	called immediately when scene is made active
 
 ### leave() [optional]
-	called immediately when scene is deactivated
+	called immediately before scene is deactivated
+
+### resize() [optional]
+	called when canvas is resized while scene is active
 
 ### tick() [optional]
     called every engine.Tick seconds; possibly multiple times per frame. All calls to tick() for a frame will be made before a call to update().

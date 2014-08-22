@@ -1,6 +1,38 @@
-exports.Tick = 1.0 / 60.0;
-exports.DesiredAspect = undefined; //[{x:16, y:9}, {x:1,y:1}]; //can be array, object, or undefined
-exports.Size = {x:NaN, y:NaN}; //updated on resize
+//Define some properties on engine:
+//engine.Tick controls how often the fixed-step update ('tick()') is called:
+engine.Tick = 1.0 / 60.0;
+
+//engine.DesiredAspect controls what sizes the game's canvas can take on:
+engine.DesiredAspect = {x:16, y:9}; //be exactly this aspect ratio
+//engine.DesiredAspect = undefined; //fill the #game div
+//engine.DesiredAspect = [{x:1, y:2}, {x:4,y:3}]; //pick whichever aspect ratio fits best
+
+//engine.Size is read-only and reflects the current size of the canvas:
+var Size = {x:NaN, y:NaN};
+Object.defineProperty(engine, "Size", {
+	configurable:false, enumerable:true,
+	get:function(){ return Size; }
+});
+
+
+//engine.CurrentScene is the scene all events are sent to:
+var CurrentScene = null;
+Object.defineProperty(engine, "CurrentScene", {
+	configurable:false,
+	enumerable:true,
+	get:function(){ return CurrentScene; },
+	set:function(val){
+		if (CurrentScene !== null) {
+			CurrentScene.leave && CurrentScene.leave();
+		}
+		CurrentScene = val;
+		if (CurrentScene !== null) {
+			CurrentScene.enter && CurrentScene.enter();
+		}
+	}
+});
+
+//----------------------------------------------------
 
 exports.init = function(onstart) {
 
@@ -32,7 +64,6 @@ exports.init = function(onstart) {
 
 	//----------------------------------
 	//resizing behavior:
-	var me = this;
 
 	//The idea is that the canvas fits inside the frame, and has its width and height changed [shrunk] to satisfy desired properties.
 	function resized() {
@@ -59,25 +90,26 @@ exports.init = function(onstart) {
 			}
 		}
 
-		if (me.DesiredAspect === undefined) {
+		if (engine.DesiredAspect === undefined) {
 			//great!
 			best_size.x = Math.floor(max_size.x);
 			best_size.y = Math.floor(max_size.y);
-		} else if ('forEach' in me.DesiredAspect) {
-			me.DesiredAspect.forEach(tryAspect);
+		} else if ('forEach' in engine.DesiredAspect) {
+			engine.DesiredAspect.forEach(tryAspect);
 		} else {
-			tryAspect(me.DesiredAspect);
+			tryAspect(engine.DesiredAspect);
 		}
-		if (best_size.x != me.Size.x || best_size.y != me.Size.y) {
+		if (best_size.x != Size.x || best_size.y != Size.y) {
 			console.log("New size is: " + best_size.x + " x " + best_size.y);
-			me.Size.x = best_size.x;
-			me.Size.y = best_size.y;
-			canvas.style.width = me.Size.x + "px";
-			canvas.style.height = me.Size.y + "px";
-			console.log
-			canvas.width = me.Size.x;
-			canvas.height = me.Size.y;
-			gl.viewport(0,0,me.Size.x,me.Size.y);
+			Size.x = best_size.x;
+			Size.y = best_size.y;
+			canvas.style.width = Size.x + "px";
+			canvas.style.height = Size.y + "px";
+			canvas.width = Size.x;
+			canvas.height = Size.y;
+			gl.viewport(0,0,Size.x,Size.y);
+			//Notify current scene, if there is one:
+			CurrentScene && CurrentScene.resize && CurrentScene.resize();
 		}
 	}
 
@@ -107,13 +139,13 @@ exports.init = function(onstart) {
 	//TODO: first scene should probably wait for resources to be loaded
 	// before handing control over to the game.
 
-	var scene = onstart();
-
-	scene.enter && scene.enter();
+	onstart();
 
 	var previous = NaN;
 	var acc = 0.0;
 	function animate(timestamp) {
+		if (!CurrentScene) return;
+
 		if (isNaN(previous)) {
 			previous = timestamp;
 		}
@@ -122,16 +154,19 @@ exports.init = function(onstart) {
 
 		//Run tick (fixed timestep):
 		acc += elapsed;
-		while (acc > this.Tick * 0.5) {
-			acc -= this.Tick;
-			scene.tick && scene.tick();
+		while (acc > engine.Tick * 0.5) {
+			acc -= engine.Tick;
+			CurrentScene.tick && CurrentScene.tick();
+			if (!CurrentScene) return;
 		}
 
 		//Run update (variable timestep):
-		scene.update && scene.update(elapsed);
+		CurrentScene.update && CurrentScene.update(elapsed);
+		if (!CurrentScene) return;
 
 		//Draw:
-		scene.draw();
+		CurrentScene.draw();
+		if (!CurrentScene) return;
 
 		requestAnimFrame(animate);
 	}

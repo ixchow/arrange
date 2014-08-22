@@ -37,7 +37,7 @@ a {
 }
 </style>
 </head>
-<body onload="engine.core.init(function() { return new game.scene1() });">
+<body onload="engine.core.init(function() { engine.CurrentScene = new game.scene1() });">
 	<button onclick="engine.music.mute()">Mute</button>
 <div id="game"><canvas id="canvas"></canvas></div>
 <p>
