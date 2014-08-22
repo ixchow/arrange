@@ -13,6 +13,14 @@ if filename == None:
 	print("Please pass '-- <outfile>' after the script name", file=sys.stderr)
 	bpy.ops.wm.quit_blender()
 
+#Attrib conversion function:
+def to_normalized_uint8(val):
+	val = int(val * 255 + 0.5)
+	if val < 0: val = 0
+	if val > 255: val = 255
+	return val
+
+
 #Write a mesh with just position:
 def mesh_data(obj):
 	bpy.ops.object.mode_set(mode='OBJECT')
@@ -29,11 +37,11 @@ def mesh_data(obj):
 	bpy.ops.object.mode_set(mode='OBJECT')
 
 	#Consider possibly using code to bake color:
-	#if do_flags & BakeColor:
-	#	bpy.ops.mesh.vertex_color_add()
-	#	bpy.context.scene.render.bake_type = 'FULL'
-	#	bpy.context.scene.render.use_bake_to_vertex_color = True
-	#	bpy.ops.object.bake_image()
+	if True: #do_flags & BakeColor:
+		bpy.ops.mesh.vertex_color_add()
+		bpy.context.scene.render.bake_type = 'FULL'
+		bpy.context.scene.render.use_bake_to_vertex_color = True
+		bpy.ops.object.bake_image()
 
 	verts = []
 	#if do_flags & BakeTransform:
@@ -41,7 +49,7 @@ def mesh_data(obj):
 		for poly in obj.data.polygons:
 			assert(len(poly.vertices) == 3)
 			for vi in poly.vertices:
-				xf = obj.matrix_world * obj.data.vertices[vi].co
+				xf = obj.data.vertices[vi].co
 				verts.append((xf[0],xf[1],xf[2]))
 	# else:
 	# 	for poly in obj.data.polygons:
@@ -50,27 +58,27 @@ def mesh_data(obj):
 	# 			verts.append(tuple(obj.data.vertices[vi].co))
 
 	#if do_flags & DoColor:
-	#	colors = []
-	#	for poly in obj.data.polygons:
-	#		assert(len(poly.vertices) == 3)
-	#		if do_flags & BakeColor:
-	#			vcs = obj.data.vertex_colors[-1].data
-	#			for idx in poly.loop_indices:
-	#				col = tuple(map(to_normalized_uint8, vcs[idx].color))
-	#				assert(len(col) == 3)
-	#				colors.append((col[0], col[1], col[2], 255))
-	#			
-	#		else:
-	#			mat = obj.material_slots[poly.material_index].material
-	#			if mat.use_transparency:
-	#				alpha = mat.alpha
-	#			else:
-	#				alpha = 1.0
-	#			color = tuple(mat.diffuse_color) + (alpha,)
-	#			color = tuple(map(to_normalized_uint8, color))
-	#
-	#			for vi in poly.vertices:
-	#				colors.append(color)
+	colors = []
+	for poly in obj.data.polygons:
+		assert(len(poly.vertices) == 3)
+		if True: #do_flags & BakeColor:
+			vcs = obj.data.vertex_colors[-1].data
+			for idx in poly.loop_indices:
+				col = tuple(map(to_normalized_uint8, vcs[idx].color))
+				assert(len(col) == 3)
+				colors.append((col[0], col[1], col[2], 255))
+			
+		#else:
+		#	mat = obj.material_slots[poly.material_index].material
+		#	if mat.use_transparency:
+		#		alpha = mat.alpha
+		#	else:
+		#		alpha = 1.0
+		#	color = tuple(mat.diffuse_color) + (alpha,)
+		#	color = tuple(map(to_normalized_uint8, color))
+
+		#	for vi in poly.vertices:
+		#		colors.append(color)
 	
 	#if do_flags & DoTexture0:
 	#	texcoords = []
@@ -91,21 +99,25 @@ def mesh_data(obj):
 
 	#TODO: consider tristripping
 
-	data = {'verts3' : [] }
+	data = {'verts3' : [], 'colors4' : [] }
 
-	#Write mesh as triangles:
-	for i in range(0,len(verts)):
-		data['verts3'].extend(verts[i])
-			#out.write(struct.pack('f',v))
-			#assert(len(struct.pack('f',v)) == 4)
-		# if do_flags & DoColor:
-		# 	for v in colors[i]:
-		# 		blob.write(struct.pack('B',v))
-		# 		assert(len(struct.pack('B',v)) == 1)
-		# if do_flags & DoTexture0:
-		# 	for v in texcoords[i]:
-		# 		blob.write(struct.pack('f',v))
-		# 		assert(len(struct.pack('f',v)) == 4)
+	def matrix_to_Mat4(m):
+		return "new engine.Mat4(" \
+			+ ",".join(map(str,m.col[0])) + ", " \
+			+ ",".join(map(str,m.col[1])) + ", " \
+			+ ",".join(map(str,m.col[2])) + ", " \
+			+ ",".join(map(str,m.col[3])) + ")" \
+
+	data['localToParent'] = matrix_to_Mat4(obj.matrix_local)
+	data['localToWorld'] = matrix_to_Mat4(obj.matrix_world)
+
+	for v in verts:
+		data['verts3'].extend(v)
+	for c in colors:
+		data['colors4'].extend(c)
+
+	assert(len(data['verts3']) / 3 == len(data['colors4']) / 4)
+
 	return data
 
 data = {}
@@ -142,6 +154,8 @@ def dump(out, data):
 		write(k + ":")
 		if type(v) == dict:
 			dump(out, v)
+		elif type(v) == str:
+			write(v)
 		elif type(v) == list:
 			write("new Float32Array([")
 			for i in range(0,len(v)):
