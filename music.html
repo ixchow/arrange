@@ -2398,9 +2398,6 @@ exports = {
 return exports;
 })({});
 synths.fat = (function(exports) {
-// Example from http://mohayonao.github.io/timbre.js/satie.html
-
-// var env   = T("adsr", {d:3000, s:0, r:600});
 var synth = T("SynthDef", {mul:0.45, poly:2});
 
 synth.def = function(opts) {
@@ -2411,19 +2408,31 @@ synth.def = function(opts) {
 	
 	a = T("pan", {pos:T("sin", {freq:T("param", {value:0.1}).expTo(100, "30sec"), kr:true})}, a);
 	
-  // var op1 = T("osc", {wave: 'sin', freq:opts.freq*6, fb:0.25, mul:0.4});
-  //
-  // var op2 = T("osc", {wave: 'saw', freq:opts.freq, phase:op1, mul:opts.velocity/128});
-	// var env   = T("adsr", {d:3000, s:0, r:600}, a, b, c);
 	var env = T("+", a, b, c);
   return env.on("ended", opts.doneAction).bang();
 };
 
 var master = synth;
-// var mod    = T("sin", {freq:2, add:3200, mul:800, kr:1});
-// master = T("eq", {params:{lf:[800, 0.5, -2], mf:[6400, 0.5, 4]}}, master);
-// master = T("phaser", {freq:mod, Q:2, steps:4}, master);
-// master = T("delay", {time:"BPM60 L16", fb:0.65, mix:0.25}, master);
+
+exports = {
+	in: synth,
+	out: master
+};
+
+return exports;
+})({});
+synths.noise_drum = (function(exports) {
+var synth = T("SynthDef", {mul:0.45, poly:2});
+
+synth.def = function(opts) {
+	var n = T("fnoise", {freq:opts.freq, mul:0.7});
+	var w = T("noise", {freq:opts.freq, mul:0.2});
+	var env   = T("adsr", {a: 100, d:200, s:0, r:100}, n);
+	return env.on("ended", opts.doneAction).bang();
+};
+
+var master = synth;
+master = T("reverb", master);
 
 exports = {
 	in: synth,
@@ -2531,12 +2540,14 @@ function music_play() {
 <body onload="music_start()">
   <div id="content"></div>
   synth: <select id="synth">
+    <option>noise_drum</option>
     <option>fat</option>
     <option>bells</option>
     <option>vowels</option>
   </select>
 	<button onclick="music_play()">Play</button>
   <a href="http://benjaminsoule.fr/tools/vmml/">VMML editor</a>
+  <a href="http://www.netmftoolbox.com/tools/midi_to_mml.php">MIDI to MML converter</a>
   <br/>
   <textarea id="mml" style="width: 90%; height: 800px">
     t60 l4 v6 q2 o3
