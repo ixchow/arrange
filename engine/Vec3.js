@@ -32,6 +32,7 @@ Vec3.prototype.cross = function(b) {
 Vec3.prototype.normalized = function() {
 	var invMag = Math.sqrt(this.dot(this));
 	if (invMag == 0.0) {
+		return new Vec3(1, 0, 0);
 	} else {
 		invMag = 1.0 / invMag;
 		return this.times(invMag);
