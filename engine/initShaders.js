@@ -1,16 +1,27 @@
 exports = function() {
 	var scripts = document.getElementsByTagName("script");
-	var shaders = [];
+	var programNames = {};
 
-	function getObject(id) {
-		var ret = window;
-		id.split('.').forEach(function(name){
-			if (!ret.hasOwnProperty(name)) {
-				ret[name] = {};
+	function getProgram(id) {
+		var path = id.split('.');
+		var name = path.pop();
+		//Walk to parent of desired program:
+		var par = window;
+		path.forEach(function(n) {
+			if (!par.hasOwnProperty(n)) {
+				par[n] = {}; //create objects all the way up...
 			}
-			ret = ret[name];
+			par = par[n];
 		});
-		return ret;
+
+		//Create program if needed:
+		if (!par.hasOwnProperty(name)) {
+			par[name] = gl.createProgram();
+		} else {
+			//TODO: check if par[name] is {}
+		}
+
+		return par[name];
 	}
 
 	function readScript(script) {
@@ -26,106 +37,72 @@ exports = function() {
 		return ret;
 	}
 
-	var vertCount = 0; //keep track of number of vertex shaders loaded, to error check against number of fragment shaders. They should be paired.
-
+	//Attach fragment and vertex shaders from scripts:
 	for (var i = 0; i < scripts.length; ++i) {
 		var script = scripts[i];
+		var shaderType = undefined;
+		var id = script.id;
+
 		if (script.type == "x-shader/x-fragment") {
-			var id = script.id;
+			shaderType = gl.FRAGMENT_SHADER;
 			if (id.substr(id.length-3,3) != ".fs") {
-				console.log("Shader has id '" + id + "'; expecting suffix '.fs'");
+				console.error("Shader has id '" + id + "'; expecting suffix '.fs'");
 				return false;
 			}
-			id = id.substr(0, id.length-3);
-			var shader = getObject(id);
-			if (shader.hasOwnProperty("fs")) {
-				console.log("Shader '" + id + "' has two fragment shaders defined.");
-				return false;
-			}
-			shader.fs = readScript(script);
-			shaders.push(shader);
 		} else if (script.type == "x-shader/x-vertex") {
-			var id = script.id;
+			shaderType = gl.VERTEX_SHADER;
 			if (id.substr(id.length-3,3) != ".vs") {
-				console.log("Shader has id '" + id + "'; expecting suffix '.vs'");
+				console.error("Shader has id '" + id + "'; expecting suffix '.vs'");
 				return false;
 			}
-			id = id.substr(0, id.length-3);
-			var shader = getObject(id);
-			if (shader.hasOwnProperty("vs")) {
-				console.log("Shader '" + id + "' has two vertex shaders defined.");
-				return false;
-			}
-			shader.vs = readScript(script);
-			++vertCount;
+		} else {
+			continue;
 		}
+		id = id.substr(0, id.length-3);
+		programNames[id] = id;
+
+		var program = getProgram(id);
+		var shader = gl.createShader(shaderType);
+		var source = readScript(script);
+		gl.shaderSource(shader, source);
+		gl.compileShader(shader);
+		if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+			console.error("Failed to compile shader " + script.id + ": " + gl.getShaderInfoLog(vs));
+			return false;
+		}
+		gl.attachShader(program, shader);
 	}
 
-	if (shaders.length != vertCount) {
-		console.log("Loaded " + vertCount + " vertex shaders and " + shaders.length + " fragment shaders; they can't all be properly paired.");
-		return false;
-	}
-	var success = true;
-	shaders.forEach(function(s){
-		if (!s.hasOwnProperty("vs")) {
-			console.log("Shader missing a paired vertex shader.");
-			success = false;
-			return;
-		}
-
-		var vs = gl.createShader(gl.VERTEX_SHADER);
-		gl.shaderSource(vs, s.vs);
-		gl.compileShader(vs);
-		if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) {
-			console.log("Failed to compile vertex shader: " + gl.getShaderInfoLog(vs));
-			success = false;
-			return;
-		}
-
-		var fs = gl.createShader(gl.FRAGMENT_SHADER);
-		gl.shaderSource(fs, s.fs);
-		gl.compileShader(fs);
-		if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
-			console.log("Failed to compile fragment shader: " + gl.getShaderInfoLog(fs));
-			success = false;
-			return;
-		}
-
-		var program = gl.createProgram();
-		gl.attachShader(program, vs);
-		gl.attachShader(program, fs);
+	//Now that shaders are attached, link programs:
+	for (name in programNames) {
+		var program = getProgram(name);
 		gl.linkProgram(program);
 
 		if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-			console.log("Unable to link shader program.");
-			success = false;
-			return;
+			console.error("Unable to link shader program '" + name + "'");
+			return false;
 		}
 
-		s.program = program;
-
-		var na = gl.getProgramParameter(s.program, gl.ACTIVE_ATTRIBUTES);
+		var na = gl.getProgramParameter(program, gl.ACTIVE_ATTRIBUTES);
 		for (var i = 0; i < na; ++i) {
-			var a = gl.getActiveAttrib(s.program, i);
-			s[a.name] = {
+			var a = gl.getActiveAttrib(program, i);
+			program[a.name] = {
 				location:i,
 				type:a.type,
 				size:a.size
 			};
 		}
 
-		var nu = gl.getProgramParameter(s.program, gl.ACTIVE_UNIFORMS);
+		var nu = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
 		for (var i = 0; i < nu; ++i) {
-			var u = gl.getActiveUniform(s.program, i);
-			s[u.name] = {
-				location:gl.getUniformLocation(s.program, u.name),
+			var u = gl.getActiveUniform(program, i);
+			program[u.name] = {
+				location:gl.getUniformLocation(program, u.name),
 				type:a.type,
 				size:a.size
 			};
 		}
-		delete s.vs;
-		delete s.fs;
+	}
 
-	});
-	return success;
+	return true;
 };

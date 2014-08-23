@@ -69,7 +69,7 @@ exports.prototype.draw = function() {
 
 	var s = shaders.solid;
 
-	gl.useProgram(s.program);
+	gl.useProgram(s);
 
 	var MV = lookAt(new Vec3(Math.cos(this.spin), Math.sin(this.spin), 1.0).times(6.0), new Vec3(0.0, 0.0, 0.0), new Vec3(0.0, 0.0, 1.0));
 	var P = perspective(45.0, engine.Size.x / engine.Size.y, 0.1, 100.0);
