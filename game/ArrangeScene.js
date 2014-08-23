@@ -186,6 +186,7 @@ ArrangeScene.prototype.buildCombined = function() {
 		f.tiles.forEach(function(t){
 			var at = rot(f.r, t.at);
 			at.x += f.at.x;
+			at.y += f.at.y;
 			var r = (t.r + f.r) % 4;
 
 			var idx = combined.index(at);
@@ -375,7 +376,7 @@ ArrangeScene.prototype.setHoverInfo = function(x, y) {
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null)
 
 	if (tag[0] != 255 && tag[1] != 255) {
-		var tiles = this.combined[tag[1] * this.combined.size.y + tag[0]];
+		var tiles = this.combined[tag[1] * this.combined.size.x + tag[0]];
 		var idx = tag[2];
 		if (idx == 255) {
 			//hmm, hitting floor, need to figure that out.
@@ -392,9 +393,10 @@ ArrangeScene.prototype.setHoverInfo = function(x, y) {
 			//var tile = tiles[idx].tile;
 			this.hoverInfo = {
 				at:{x:tag[0], y:tag[1]},
+				z:mouse3d.z,
 				fragment:fragment,
 				//tile:tile,
-				toMouse:mouse3d.minus(new Vec3(fragment.at.x, fragment.at.y, 0.0))
+				mouseToFragment:{x:fragment.at.x - mouse3d.x, y:fragment.at.y - mouse3d.y}
 			};
 
 			this.mouse3d = mouse3d; //DEBUG
@@ -406,6 +408,15 @@ ArrangeScene.prototype.setHoverInfo = function(x, y) {
 ArrangeScene.prototype.mouse = function(x, y, isDown) {
 	if (this.dragInfo) {
 		//update thing we are dragging.
+		var mouse3d = this.mouseToPlane(x, y, this.dragInfo.z);
+		var want = {
+			x:mouse3d.x + this.dragInfo.mouseToFragment.x,
+			y:mouse3d.y + this.dragInfo.mouseToFragment.y
+		};
+		this.dragInfo.fragment.at.x = Math.round(want.x);
+		this.dragInfo.fragment.at.y = Math.round(want.y);
+		this.buildCombined(); //TODO: should probably just set it dirty
+		this.drawHelper(true); //TODO: again, should probably just set dirty
 	}
 
 	if (!isDown && this.mouseDown) {
