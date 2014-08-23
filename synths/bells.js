@@ -1,7 +1,7 @@
 // Example from http://mohayonao.github.io/timbre.js/satie.html
 
 var env   = T("adsr", {d:3000, s:0, r:600});
-var synth = T("SynthDef", {mul:0.45, poly:8});
+var synth = T("SynthDef", {mul:0.45, poly:64});
 
 synth.def = function(opts) {
   var op1 = T("sin", {freq:opts.freq*6, fb:0.25, mul:0.4});
