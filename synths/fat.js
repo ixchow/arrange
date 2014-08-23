@@ -1,4 +1,4 @@
-var synth = T("SynthDef", {mul:0.45, poly:2});
+var synth = T("SynthDef", {mul:0.45, poly:64});
 
 synth.def = function(opts) {
 	var f = opts.freq / 2;
@@ -8,7 +8,7 @@ synth.def = function(opts) {
 	
 	a = T("pan", {pos:T("sin", {freq:T("param", {value:0.1}).expTo(100, "30sec"), kr:true})}, a);
 	
-	var env = T("+", a, b, c);
+	var env = T("adsr", a, b, c);
   return env.on("ended", opts.doneAction).bang();
 };
 

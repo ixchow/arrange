@@ -72,6 +72,12 @@ function rot(r, pt) {
 	}
 }
 
+function rot_group(r, group) {
+	group.tiles.forEach(function(f) {
+		f.at = rot(r, f.at);
+	});
+}
+
 var ArrangeScene = function(level) {
 	//TODO: actually load level from level.
 
@@ -118,6 +124,7 @@ var selectFb = null;
 
 ArrangeScene.prototype.enter = function() {
 	this.resize();
+	engine.music.play(music.mike1, synths.bells);
 };
 
 ArrangeScene.prototype.leave = function() {
@@ -444,5 +451,15 @@ ArrangeScene.prototype.mouse = function(x, y, isDown) {
 
 };
 
+ArrangeScene.prototype.debug_move = function(n, x, y) {
+	this.fragments[n].at.x += x;
+	this.fragments[n].at.y += y;
+	this.buildCombined();
+}
+
+ArrangeScene.prototype.debug_rot = function(n) {
+	rot_group(1, this.fragments[n]);
+	this.buildCombined();
+}
 
 exports = ArrangeScene;

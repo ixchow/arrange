@@ -38,18 +38,17 @@ a {
 </style>
 <script>
 function music_start() {
-  var e = document.getElementById('content');  
+  var e = document.getElementById('synth');
+  for (var s in window.synths) {
+    var opt = document.createElement('option');
+    opt.text = s;
+    synth.add(opt);
+  }
 }
 
 function music_play() {
   var mml = document.getElementById('mml').value;
-	mml = mml.replace(/\n/g, ' ');
-  mml = mml.toLowerCase();
-  mml = mml.replace(/p/g, 'r');
-	var mmls = mml.split(';');
-	var music = function(synth) {
-		return T("mml", {mml: mmls}, synth.in).set({buddies: synth.out});
-  };
+  var music = engine.mml(mml);
   engine.music.play(music, synths[document.getElementById('synth').value]);
 }
 
@@ -57,12 +56,7 @@ function music_play() {
 </head>
 <body onload="music_start()">
   <div id="content"></div>
-  synth: <select id="synth">
-    <option>noise_drum</option>
-    <option>fat</option>
-    <option>bells</option>
-    <option>vowels</option>
-  </select>
+  synth: <select id="synth"></select>
 	<button onclick="music_play()">Play</button>
   <a href="http://benjaminsoule.fr/tools/vmml/">VMML editor</a>
   <a href="http://www.netmftoolbox.com/tools/midi_to_mml.php">MIDI to MML converter</a>

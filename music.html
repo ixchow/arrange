@@ -945,117 +945,45 @@ exports = emitMesh;
 
 return exports;
 })({});
-window.game = {};
-game.scene1 = (function(exports) {
-exports = function() {
-	this.fade = 0.0;
-	this.spin = 0.0;
-	this.mesh = meshes.tree.trunk;
-	return this;
-}
+engine.mml = (function(exports) {
+// Returns a music object given an MML input string
 
-var Vec3 = engine.Vec3;
-var Mat4 = engine.Mat4;
-
-//create 4x4 "look at" matrix which:
-//     aligns -z axis with the target,
-//     places eye at the origin,
-//     and aligns 'up_vec' to the +y axis
-function lookAt(eye, target, up) {
-	var y = up.normalized();
-	var z = eye.minus(target).normalized();
-	var x = y.cross(z);
-	//matrix (column-major order):
-	return new Mat4(
-		x.x, y.x, z.x, 0.0,
-		x.y, y.y, z.y, 0.0,
-		x.z, y.z, z.z, 0.0,
-		-eye.dot(x), -eye.dot(y), -eye.dot(z), 1.0
-	);
-}
-
-function perspective(fovy, aspect, near, far) {
-	var f =  Math.tan(fovy * 0.5 / 180.0 * Math.PI);
-	return new Mat4(
-		f / aspect, 0.0, 0.0, 0.0,
-		0.0, f, 0.0, 0.0,
-		0.0, 0.0, (far + near) / (near - far), -1.0,
-		0.0, 0.0, 2 * (far * near) / (near - far), 0.0
-	);
-}
-
-/*
-(function(){
-	var MV = lookAt(new Vec3(10.0, 10.0, 10.0), new Vec3(0.0, 0.0, 0.0), new Vec3(0.0, 0.0, 1.0));
-	var P = perspective(60.0, 1.0, 0.1, 100.0);
-	console.log(MV);
-	console.log(P);
-	console.log(P.times(MV));
-}());
-*/
-
-exports.prototype.update = function(elapsed) {
-	this.fade += elapsed;
-	if (this.fade > 1.0) this.fade = this.fade % 1.0;
-
-	this.spin += elapsed;
-	if (this.spin > Math.Pi * 2.0) this.spin = this.spin % (Math.Pi * 2.0);
-};
-
-exports.prototype.enter = function() {
-	// engine.music.play(music.gymnopedie, synths.bells);
-	// engine.music.play(music.khoomii, synths.vowels);
-};
-
-
-exports.prototype.draw = function() {
-	gl.clearColor(0.0, 0.0, this.fade, 1.0);
-	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-	gl.enable(gl.DEPTH_TEST);
-
-	var vertsBuffer = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, vertsBuffer);
-
-	var s = shaders.solid;
-
-	gl.useProgram(s);
-
-	var MV = lookAt(new Vec3(Math.cos(this.spin), Math.sin(this.spin), 1.0).times(6.0), new Vec3(0.0, 0.0, 0.0), new Vec3(0.0, 0.0, 1.0));
-	var P = perspective(45.0, engine.Size.x / engine.Size.y, 0.1, 100.0);
-
-
-	gl.enableVertexAttribArray(s.aVertex.location);
-	gl.vertexAttribPointer(s.aVertex.location, 3, gl.FLOAT, false, 0, 0);
-
-
-	gl.vertexAttrib4f(s.aColor.location, 0.5, 0.5, 0.0, 1.0);
-
-	gl.uniformMatrix4fv(s.uMVP.location, false, P.times(MV).times(this.mesh.localToWorld));
-	gl.bufferData(gl.ARRAY_BUFFER, this.mesh.verts3, gl.STREAM_DRAW);
-	gl.drawArrays(gl.TRIANGLES, 0, this.mesh.verts3.length / 3);
-
-	gl.vertexAttrib4f(s.aColor.location, 0.2, 0.7, 0.0, 1.0);
-	gl.uniformMatrix4fv(s.uMVP.location, false, P.times(MV).times(this.mesh.leaves1.localToWorld));
-	gl.bufferData(gl.ARRAY_BUFFER, this.mesh.leaves1.verts3, gl.STREAM_DRAW);
-	gl.drawArrays(gl.TRIANGLES, 0, this.mesh.leaves1.verts3.length / 3);
-
-	gl.vertexAttrib4f(s.aColor.location, 0.1, 0.8, 0.1, 1.0);
-	gl.uniformMatrix4fv(s.uMVP.location, false, P.times(MV).times(this.mesh.leaves2.localToWorld));
-	gl.bufferData(gl.ARRAY_BUFFER, this.mesh.leaves2.verts3, gl.STREAM_DRAW);
-	gl.drawArrays(gl.TRIANGLES, 0, this.mesh.leaves2.verts3.length / 3);
-
-	gl.disableVertexAttribArray(s.aVertex.location);
-	gl.deleteBuffer(vertsBuffer);
-	delete vertsBuffer;
-
-};
-
-exports.prototype.mouse = function(x, y, isDown) {
-	console.log(arguments);
+exports = function(mml) {
+	mml = mml.replace(/\n/g, ' ');
+  mml = mml.toLowerCase();
+  mml = mml.replace(/p/g, 'r');
+	var mmls = mml.split(';');
+	return function(synth) {
+		return T("mml", {mml: mmls}, synth.in).set({buddies: synth.out});
+  };
 }
 
 return exports;
 })({});
+engine.sfx = (function(exports) {
+
+exports = function(wave, start_freq, end_freq, attack, decay, vib_freq, vib_effect) {
+	// var wave = ['sin', 'saw', 'tri', 'square', 'fnoise'][4];
+	// var start_freq = 440;
+	// var end_freq = 880;
+	// var attack = 0;
+	// var decay = 400;
+
+	var len = attack + decay;
+
+  var f = T('+', 
+		T('param', {value: start_freq}).expTo(end_freq, len + 'ms'),
+		T('sin', {freq: vib_freq, mul: vib_effect})
+	);
+	var n = T(wave, {freq: f});
+
+	var env   = T("adsr", {a: attack, d:decay, s:0, r:0}, n);
+	env.play().bang();
+}
+
+return exports;
+})({});
+window.game = {};
 game.ArrangeScene = (function(exports) {
 var Vec3 = engine.Vec3;
 var Mat4 = engine.Mat4;
@@ -1131,6 +1059,12 @@ function rot(r, pt) {
 	}
 }
 
+function rot_group(r, group) {
+	group.tiles.forEach(function(f) {
+		f.at = rot(r, f.at);
+	});
+}
+
 var ArrangeScene = function(level) {
 	//TODO: actually load level from level.
 
@@ -1177,6 +1111,7 @@ var selectFb = null;
 
 ArrangeScene.prototype.enter = function() {
 	this.resize();
+	engine.music.play(music.mike1, synths.bells);
 };
 
 ArrangeScene.prototype.leave = function() {
@@ -1503,6 +1438,16 @@ ArrangeScene.prototype.mouse = function(x, y, isDown) {
 
 };
 
+ArrangeScene.prototype.debug_move = function(n, x, y) {
+	this.fragments[n].at.x += x;
+	this.fragments[n].at.y += y;
+	this.buildCombined();
+}
+
+ArrangeScene.prototype.debug_rot = function(n) {
+	rot_group(1, this.fragments[n]);
+	this.buildCombined();
+}
 
 exports = ArrangeScene;
 
@@ -1546,7 +1491,10 @@ exports = function(synth) {
 return exports;
 })({});
 music.gymnopedie = function(synth) {
-return T("mml", {mml:["t60 l4 v6 q2 o3 [ [g < b0<d0f+2>> d <a0<c+0f+2>>]8 f+ <a0<c+0f+2>>> b<<b0<d0f+2>> e<g0b2> e<b0<d0g2>> d<f0a0<d2>> >a<<a0<c0e2>> d<g0b0<e2>> d<d0g0b0<e2>> d<c0e0a0<d2>> d<c0f+0a0<d2>> d<a0<c0f2>> d<a0<c0e2>> d<d0g0b0<e2>> d<c0e0a0<d2>> d<c0f+0a0<d2>> | e<b0<e0g2>> f+<a0<c+0f+2>>> b<<b0<d0f+2>> e<<c+0e0a2>> e<a0<c+0f+0a2>> eb0<a0<d>e0b0<d0g>> a0<g2.> d0a0<d2.> ] e<b0<e0g2>> e<a0<d0f0a2>> e<a0<c0f2>> e<<c0e0a2>> e<a0<c0f0a2>> eb0<a0<d>e0b0<d0g>> a0<g2.> d0a0<d2.>","  t60 v14 l4 o6 [ r2. r2. r2. r2. rf+a gf+c+ >b<c+d >a2. f+2.& f+2.& f+2.& f+2.< rf+a gf+c+ >b<c+d >a2.< c+2. f+2. >e2.&e2.&e2. ab<c ed>b< dc>b< d2.& d2d efg acd ed>b <d2.& d2d | g2. f+2.> bab< c+de c+de> f+2. c0e0a0<c2.> d0f+0a0<d2. ] g2. f2.> b<cf edc edc> f2. c0e0a0<c2.> d0f0a0<d2."," "]}, synth.in).set({buddies:synth.out});
+return engine.mml("t60 l4 v6 q2 o3 [ [g < b0<d0f+2>> d <a0<c+0f+2>>]8 f+ <a0<c+0f+2>>> b<<b0<d0f+2>> e<g0b2> e<b0<d0g2>> d<f0a0<d2>> >a<<a0<c0e2>> d<g0b0<e2>> d<d0g0b0<e2>> d<c0e0a0<d2>> d<c0f+0a0<d2>> d<a0<c0f2>> d<a0<c0e2>> d<d0g0b0<e2>> d<c0e0a0<d2>> d<c0f+0a0<d2>> | e<b0<e0g2>> f+<a0<c+0f+2>>> b<<b0<d0f+2>> e<<c+0e0a2>> e<a0<c+0f+0a2>> eb0<a0<d>e0b0<d0g>> a0<g2.> d0a0<d2.> ] e<b0<e0g2>> e<a0<d0f0a2>> e<a0<c0f2>> e<<c0e0a2>> e<a0<c0f0a2>> eb0<a0<d>e0b0<d0g>> a0<g2.> d0a0<d2.>;  t60 v14 l4 o6 [ r2. r2. r2. r2. rf+a gf+c+ >b<c+d >a2. f+2.& f+2.& f+2.& f+2.< rf+a gf+c+ >b<c+d >a2.< c+2. f+2. >e2.&e2.&e2. ab<c ed>b< dc>b< d2.& d2d efg acd ed>b <d2.& d2d | g2. f+2.> bab< c+de c+de> f+2. c0e0a0<c2.> d0f+0a0<d2. ] g2. f2.> b<cf edc edc> f2. c0e0a0<c2.> d0f0a0<d2.; ")(synth);
+}
+music.mike1 = function(synth) {
+return engine.mml("T132 L1O5P1 L34A. L7P7 L31G. L74P74 L30F. L13P13 L27E L17P. L35G. L12P12 L24F L12P12 L31E. L13P13 L35D L16P. L33F. L7P7 L35E. L52P52 L19D L14P14 L32E. L13P13 L30E. L8P. L33E. L7P. L35A. L7P7 L17G L240P240 L30F. L13P13 L19G L14P14 L18G L15P15 L30F. L13P13 L19E L8P. L31F. L13P13 L30E. L13P13 L29D. L14P14 L35C. L12P12 L26D L5P5 L26D L5P5 L33A. L7P7 L19G L113P113 L19F L14P14 L29G. L14P14 L18G L14P14 L34F. L12P12 L17E L8P. L18F L137P137 L17E L8P8 L15D L17P17 L33E. L13P13 L31F. L7P. L36E. L5P5 L24F L7P7 L8P. L19E L14P14 L17D L8P8 L19E L14P14 L18F L14P14 L16E L8P. L30D. L8P. L26C L5P5 L31<B L5>P5 L36<A L4>P4 L29A L7P7 L29G. L91P91 L30F. L13P13 L31G. L13P13 L25F L18P. L30E L16P. L25D L5P5 L24G L12P12 L33F. L13P13 L30E. L13P13 L25F L18P. L31F. L7P. L27E L5P5 L31A L6P6 L8P. L29F. L8P. L36E. L5P5 L26F L41P41 L32E. L7P. L26E L7P7 L32E P32 L28D L5P5 L34D L6P6 L28D L38P38 L45C L4P4 L31A L6P6 L24G L48P48 L34F. L7P7 L30E L35P35 L36G. L12P12 L26F L17P. L27E L5P5 L31F. L74P74 L30E. L7P7 L27D L5P5 L33E. L12P12 L36D. L12P12 L27C L5P5 L27A L7P7 L16G L480F L4P4 L33G. L58P58 L24F L12P12 L18E L4P4 L25D L18P. L28F L17P. L33E. L58P58 L25D L7P7 L33C L5P5 L33C ")(synth);
 }
 window.meshes = {};
 window.meshes.tiles = {
@@ -1774,11 +1722,31 @@ exports = {
 
 return exports;
 })({});
+synths.noise_drum = (function(exports) {
+var synth = T("SynthDef", {mul:0.45, poly:2});
+
+synth.def = function(opts) {
+	var n = T("fnoise", {freq:opts.freq, mul:0.7});
+	var w = T("noise", {freq:opts.freq, mul:0.2});
+	var env   = T("adsr", {a: 100, d:200, s:0, r:100}, n);
+	return env.on("ended", opts.doneAction).bang();
+};
+
+var master = synth;
+master = T("reverb", master);
+
+exports = {
+	in: synth,
+	out: master
+};
+
+return exports;
+})({});
 synths.bells = (function(exports) {
 // Example from http://mohayonao.github.io/timbre.js/satie.html
 
 var env   = T("adsr", {d:3000, s:0, r:600});
-var synth = T("SynthDef", {mul:0.45, poly:8});
+var synth = T("SynthDef", {mul:0.45, poly:64});
 
 synth.def = function(opts) {
   var op1 = T("sin", {freq:opts.freq*6, fb:0.25, mul:0.4});
@@ -1800,7 +1768,7 @@ exports = {
 return exports;
 })({});
 synths.fat = (function(exports) {
-var synth = T("SynthDef", {mul:0.45, poly:2});
+var synth = T("SynthDef", {mul:0.45, poly:64});
 
 synth.def = function(opts) {
 	var f = opts.freq / 2;
@@ -1810,7 +1778,7 @@ synth.def = function(opts) {
 	
 	a = T("pan", {pos:T("sin", {freq:T("param", {value:0.1}).expTo(100, "30sec"), kr:true})}, a);
 	
-	var env = T("+", a, b, c);
+	var env = T("adsr", a, b, c);
   return env.on("ended", opts.doneAction).bang();
 };
 
@@ -1823,18 +1791,16 @@ exports = {
 
 return exports;
 })({});
-synths.noise_drum = (function(exports) {
+synths.sin_drum = (function(exports) {
 var synth = T("SynthDef", {mul:0.45, poly:2});
 
 synth.def = function(opts) {
-	var n = T("fnoise", {freq:opts.freq, mul:0.7});
-	var w = T("noise", {freq:opts.freq, mul:0.2});
-	var env   = T("adsr", {a: 100, d:200, s:0, r:100}, n);
+	var n = T("sin", {freq:opts.freq});
+	var env   = T("adsr", {a: 0, d:100, s:0, r:0}, n);
 	return env.on("ended", opts.doneAction).bang();
 };
 
 var master = synth;
-master = T("reverb", master);
 
 exports = {
 	in: synth,
@@ -1918,18 +1884,17 @@ a {
 </style>
 <script>
 function music_start() {
-  var e = document.getElementById('content');  
+  var e = document.getElementById('synth');
+  for (var s in window.synths) {
+    var opt = document.createElement('option');
+    opt.text = s;
+    synth.add(opt);
+  }
 }
 
 function music_play() {
   var mml = document.getElementById('mml').value;
-	mml = mml.replace(/\n/g, ' ');
-  mml = mml.toLowerCase();
-  mml = mml.replace(/p/g, 'r');
-	var mmls = mml.split(';');
-	var music = function(synth) {
-		return T("mml", {mml: mmls}, synth.in).set({buddies: synth.out});
-  };
+  var music = engine.mml(mml);
   engine.music.play(music, synths[document.getElementById('synth').value]);
 }
 
@@ -1937,12 +1902,7 @@ function music_play() {
 </head>
 <body onload="music_start()">
   <div id="content"></div>
-  synth: <select id="synth">
-    <option>noise_drum</option>
-    <option>fat</option>
-    <option>bells</option>
-    <option>vowels</option>
-  </select>
+  synth: <select id="synth"></select>
 	<button onclick="music_play()">Play</button>
   <a href="http://benjaminsoule.fr/tools/vmml/">VMML editor</a>
   <a href="http://www.netmftoolbox.com/tools/midi_to_mml.php">MIDI to MML converter</a>
