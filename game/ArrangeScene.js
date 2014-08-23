@@ -32,16 +32,20 @@ function rot(r, pt) {
 
 var ArrangeScene = function(level) {
 	//TODO: actually load level from level.
+
+	//The first tile in every fragment is the 'key' to the fragment,
+	//and generally the point of interaction for that fragment.
+	//It should be located at (0,0), since fragments rotate around (0,0)
 	this.fragments = [
 		{
-			offset:{x:0, y:0}, r:0,
+			at:{x:0, y:0}, r:0,
 			tiles:[
 				{at:{x:0,y:0},r:0, tile:PathStart},
 				{at:{x:1,y:1},r:0, tile:Block}
 			]
 		},
 		{
-			offset:{x:10, y:10}, r:0,
+			at:{x:10, y:10}, r:0,
 			tiles:[
 				{at:{x:0,y:0},r:1, tile:PathEnd},
 				{at:{x:0,y:0},r:1, tile:Block},
@@ -62,7 +66,7 @@ ArrangeScene.prototype.buildCombined = function() {
 	//First figure out the size of grid we need:
 	var min = {x:Infinity, y:Infinity};
 	var max = {x:-Infinity, y:-Infinity};
-	fragments.forEach(function(f){
+	this.fragments.forEach(function(f){
 		f.tiles.forEach(function(t){
 			var at = rot(f.r, t.at);
 			at.x += f.at.x;
@@ -96,14 +100,14 @@ ArrangeScene.prototype.buildCombined = function() {
 
 	//Fill in the lists:
 	var combined = this.combined;
-	fragments.forEach(function(f){
+	this.fragments.forEach(function(f){
 		f.tiles.forEach(function(t){
 			var at = rot(f.r, t.at);
 			at.x += f.at.x;
 			var r = (t.r + f.r) % 4;
 
 			var idx = combined.index(at);
-			combined[idx].push({at:at, r:r, tile:t.tile});
+			combined[idx].push({r:r, tile:t.tile});
 		});
 	});
 
@@ -113,7 +117,19 @@ ArrangeScene.prototype.buildCombined = function() {
 ArrangeScene.prototype.draw = function() {
 	gl.clearColor(0.2, 0.2, 0.2, 1.0);
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-	gl.enable(gl.DEPTH_TEST);
+
+	for (var x = 0; x < this.combined.size.x; ++x) {
+		for (var y = 0; y < this.combined.size.y; ++y) {
+			var tiles = this.combined[y * this.combined.size.x + x];
+			var at = {x:this.combined.min.x + x, y:this.combined.min.y + y};
+
+			tiles.forEach(function(t){
+				//TODO: set up transform based on at,r
+				//TODO: draw tile's mesh
+			});
+
+		}
+	}
 };
 
 
