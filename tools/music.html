@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+<head>
+<title>Fragmented Memories</title>
+<script>
+$JAVASCRIPT
+</script>
+$RESOURCES
+<style>
+#canvas {
+	position:absolute;
+	top:0;
+	left:0;
+	right:0;
+	bottom:0;
+
+	margin:auto;
+}
+/* #game surrounds the play area, and has a :before element to set the aspect ratio as a function of width; the canvas will try to get as big as it can, respecting #game's size, padding, and any aspect ratio limits. */
+#game {
+	position:relative;
+	padding:0px 0px;
+	background:#333;
+}
+#game:before {
+	content:"";
+	display:block;
+	padding-top:56.25%; /* use this to set the height of the game div */
+}
+body {
+	background:#222;
+	color:#555;
+	text-align:center;
+}
+a {
+	color:#666;
+}
+</style>
+<script>
+function music_start() {
+  var e = document.getElementById('content');  
+}
+
+function music_play() {
+  var mml = document.getElementById('mml').value;
+	mml = mml.replace('\n', ' ');
+	var mmls = mml.split(';');
+	var music = function(synth) {
+		return T("mml", {mml: mmls}, synth.in).set({buddies: synth.out});
+  };
+  engine.music.play(music, synths[document.getElementById('synth').value]);
+}
+
+</script>
+</head>
+<body onload="music_start()">
+  <div id="content"></div>
+  synth: <select id="synth">
+    <option>fat</option>
+    <option>bells</option>
+    <option>vowels</option>
+  </select>
+	<button onclick="music_play()">Play</button>
+  <a href="http://benjaminsoule.fr/tools/vmml/">VMML editor</a>
+  <br/>
+  <textarea id="mml" style="width: 90%; height: 800px">
+    t60 l4 v6 q2 o3
+    [ [g < b0<d0f+2>> d <a0<c+0f+2>>]8
+    f+ <a0<c+0f+2>>> b<<b0<d0f+2>> e<g0b2> e<b0<d0g2>> d<f0a0<d2>>
+    >a<<a0<c0e2>> d<g0b0<e2>> d<d0g0b0<e2>> d<c0e0a0<d2>> d<c0f+0a0<d2>>
+    d<a0<c0f2>> d<a0<c0e2>> d<d0g0b0<e2>> d<c0e0a0<d2>> d<c0f+0a0<d2>>
+    | e<b0<e0g2>> f+<a0<c+0f+2>>> b<<b0<d0f+2>> e<<c+0e0a2>> e<a0<c+0f+0a2>>
+    eb0<a0<d>e0b0<d0g>> a0<g2.> d0a0<d2.> ]
+    e<b0<e0g2>> e<a0<d0f0a2>> e<a0<c0f2>> e<<c0e0a2>> e<a0<c0f0a2>>
+    eb0<a0<d>e0b0<d0g>> a0<g2.> d0a0<d2.>;
+
+    t60 v14 l4 o6
+    [ r2. r2. r2. r2.
+    rf+a gf+c+ >b<c+d >a2. f+2.& f+2.& f+2.& f+2.< rf+a gf+c+ >b<c+d >a2.<
+    c+2. f+2. >e2.&e2.&e2.
+    ab<c ed>b< dc>b< d2.& d2d
+    efg acd ed>b <d2.& d2d
+    | g2. f+2.> bab< c+de c+de>
+    f+2. c0e0a0<c2.> d0f+0a0<d2. ]
+    g2. f2.> b<cf edc edc>
+    f2. c0e0a0<c2.> d0f0a0<d2.;
+  </textarea>
+  <br/>
+<p>
+(This is a LD game framework by avh4 and ix.)
+</p>
+</body>
+</html>

@@ -57,3 +57,17 @@ html = html.replace('$JAVASCRIPT', minify(resources_js))
 f = open('index.html', 'wb')
 f.write(html)
 f.close()
+
+html = open('tools/music.html', 'r').read()
+resources_html = ''
+resources_js = ''
+for output in builder_outputs:
+	resources_html += output.html
+	resources_js += output.js
+
+html = html.replace('$RESOURCES', resources_html)
+html = html.replace('$JAVASCRIPT', (resources_js))
+
+f = open('music.html', 'wb')
+f.write(html)
+f.close()
