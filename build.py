@@ -44,7 +44,7 @@ builder_outputs = tools.BuildStrategy.parallel(builders)
 #write an html file (as a stream)
 from tools.minify import minify
 
-html = open('tools/skel.html', 'r').read()
+html = open('tools/skel/index.html', 'r').read()
 resources_html = ''
 resources_js = ''
 for output in builder_outputs:
@@ -58,7 +58,7 @@ f = open('index.html', 'wb')
 f.write(html)
 f.close()
 
-html = open('tools/music.html', 'r').read()
+html = open('tools/skel/music.html', 'r').read()
 resources_html = ''
 resources_js = ''
 for output in builder_outputs:
