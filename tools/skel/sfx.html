@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+<head>
+<title>Fragmented Memories</title>
+<script>
+$JAVASCRIPT
+</script>
+$RESOURCES
+<style>
+#canvas {
+	position:absolute;
+	top:0;
+	left:0;
+	right:0;
+	bottom:0;
+
+	margin:auto;
+}
+/* #game surrounds the play area, and has a :before element to set the aspect ratio as a function of width; the canvas will try to get as big as it can, respecting #game's size, padding, and any aspect ratio limits. */
+#game {
+	position:relative;
+	padding:0px 0px;
+	background:#333;
+}
+#game:before {
+	content:"";
+	display:block;
+	padding-top:56.25%; /* use this to set the height of the game div */
+}
+body {
+	background:#222;
+	color:#555;
+	text-align:center;
+}
+a {
+	color:#666;
+}
+</style>
+<script>
+function sfx_start() {
+	[ 'wave', 'start_freq', 'end_freq', 'attack', 'decay'].forEach(function(s) {
+		document.getElementById(s).onChange = function() {
+			sfx_play();
+		}
+	});
+}
+
+function sfx_play() {
+	var wave = document.getElementById('wave').value;
+	var start_freq = parseFloat(document.getElementById('start_freq').value);
+	var end_freq = parseFloat(document.getElementById('end_freq').value);
+	var attack = parseFloat(document.getElementById('attack').value);
+	var decay = parseFloat(document.getElementById('decay').value);
+	engine.sfx(wave, start_freq, end_freq, attack, decay);
+}
+
+</script>
+</head>
+<body onload="sfx_start()">
+  <div id="content"></div>
+  synth: <select id="wave">
+  	<option>sin</option>
+  	<option>saw</option>
+  	<option>square</option>
+  	<option>tri</option>
+  	<option>fnoise</option>
+  </select>
+	start freq: <input id="start_freq" value="440" /><br/>
+	end freq: <input id="end_freq" value="880" /><br/>
+	attack (ms): <input id="attack" value="100" /><br/>
+	decay (ms): <input id="decay" value="400" /><br/>
+	<button onclick="sfx_play()">Play</button>
+<p>
+(This is a LD game framework by avh4 and ix.)
+</p>
+</body>
+</html>

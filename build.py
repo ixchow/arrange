@@ -42,21 +42,23 @@ import tools.BuildStrategy
 builder_outputs = tools.BuildStrategy.parallel(builders)
 
 #write an html file (as a stream)
-from tools.minify import minify
+resources_html = ''
+resources_js = ''
+for output in builder_outputs:
+	resources_html += output.html
+	resources_js += output.js
 
-to_build = ['index', 'music'];
+from tools.minify import minify
+resources_js = minify(resources_js)
+
+to_build = ['index', 'music', 'sfx'];
 
 for b in to_build:
 	skel_file = 'tools/skel/{0}.html'.format(b)
 	html = open(skel_file, 'r').read()
-	resources_html = ''
-	resources_js = ''
-	for output in builder_outputs:
-		resources_html += output.html
-		resources_js += output.js
 
 	html = html.replace('$RESOURCES', resources_html)
-	html = html.replace('$JAVASCRIPT', minify(resources_js))
+	html = html.replace('$JAVASCRIPT', resources_js)
 
 	out_file = '{0}.html'.format(b)
 	f = open(out_file, 'wb')
