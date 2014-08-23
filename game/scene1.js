@@ -100,3 +100,7 @@ exports.prototype.draw = function() {
 	delete vertsBuffer;
 
 };
+
+exports.prototype.mouse = function(x, y, isDown) {
+	console.log(arguments);
+}

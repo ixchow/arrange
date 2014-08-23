@@ -40,6 +40,10 @@ exports.init = function(onstart) {
 	//initialize canvas and WebGL:
 	var canvas = document.getElementById("canvas");
 
+	canvas.onmousemove = engine.mouse.move;
+	canvas.onmousedown = engine.mouse.down;
+	canvas.onmouseup = engine.mouse.up;
+
 	//based on:
 	// https://developer.mozilla.org/en-US/docs/WebGL/Getting_started_with_WebGL
 

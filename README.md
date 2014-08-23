@@ -30,6 +30,9 @@ If we want to get something showing as soon as possible, would it make sense to 
 ### draw()
 	called every frame
 
+### mouse(x, y, isDown) [optional]
+  called when the mouse state changes
+
 ## Tools
 
 ### play.js
