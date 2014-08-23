@@ -1,13 +1,4 @@
-var Mesh = function(data) {
-	//TODO: create vertex buffer for mesh, upload mesh data.
-	this.verts3 = data.verts3;
-	this.colors4 = data.colors4;
-	this.localToWorld = data.localToWorld;
-	this.localToParent = data.localToParent;
-	return this;
-};
-
-Mesh.prototype.emit = function() {
+function emitMesh() {
 	var s = gl.getParameter(gl.CURRENT_PROGRAM);
 
 	var vertsBuffer = gl.createBuffer();
@@ -20,8 +11,8 @@ Mesh.prototype.emit = function() {
 	if (s.aColor) {
 		colorsBuffer = gl.createBuffer();
 		gl.bindBuffer(gl.ARRAY_BUFFER, colorsBuffer);
-		gl.BufferData(gl.ARRAY_BUFFER, this.colors4, gl.STREAM_DRAW);
-		gl.vertexAttribPointer(s.aColor.location, 5, gl.UNSIGNED_BYTE, true, 0, 0);
+		gl.bufferData(gl.ARRAY_BUFFER, this.colors4, gl.STREAM_DRAW);
+		gl.vertexAttribPointer(s.aColor.location, 4, gl.UNSIGNED_BYTE, true, 0, 0);
 		gl.enableVertexAttribArray(s.aColor.location);
 	}
 
@@ -38,4 +29,4 @@ Mesh.prototype.emit = function() {
 	delete vertsBuffer;
 };
 
-exports = Mesh;
+exports = emitMesh;
