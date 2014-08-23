@@ -54,7 +54,7 @@ exports.prototype.update = function(elapsed) {
 };
 
 exports.prototype.enter = function() {
-	engine.music.play(music.gymnopedie, synths.bells);
+	// engine.music.play(music.gymnopedie, synths.bells);
 	// engine.music.play(music.khoomii, synths.vowels);
 };
 
