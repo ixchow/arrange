@@ -1,38 +1,6 @@
 var Vec3 = engine.Vec3;
 var Mat4 = engine.Mat4;
 
-var Tile = function(params) {
-	for (n in params) {
-		this[n] = params[n];
-	}
-	return this;
-};
-
-//Eventually tiles will have their own meshes.
-Tile.prototype.emit = function() {
-	if (typeof(this.mesh) == 'string') {
-		this.mesh = meshes.tiles[this.mesh];
-	}
-	this.mesh.emit();
-};
-
-//Path tiles have an entrance to the west in their default orientation.
-var PathStart = new Tile({
-	mesh:'path_start'
-});
-var PathEnd = new Tile({
-	mesh:'path_end'
-});
-var PathStraight = new Tile({
-	mesh:'path_straight'
-});
-var PathLeft = new Tile({ });
-var PathRight = new Tile({ });
-var Pillar = new Tile({
-	mesh:'pillar'
-});
-
-
 //Rotations are 0,1,2,3 corresponding to rotating CC in 90-degree increments.
 //rot() performs rotations around the center of tile (0,0)
 function rot(r, pt) {
@@ -62,22 +30,7 @@ var ArrangeScene = function(level) {
 	//The first tile in every fragment is the 'key' to the fragment,
 	//and generally the point of interaction for that fragment.
 	//It should be located at (0,0), since fragments rotate around (0,0)
-	this.fragments = [
-		{
-			at:{x:0, y:0}, r:0,
-			tiles:[
-				{at:{x:0,y:0},r:0, tile:PathStart},
-				{at:{x:1,y:1},r:0, tile:Pillar}
-			]
-		},
-		{
-			at:{x:1, y:2}, r:0,
-			tiles:[
-				{at:{x:0,y:0},r:1, tile:Pillar},
-				{at:{x:1,y:0},r:1, tile:PathEnd},
-			]
-		}
-	];
+	this.fragments = game.level1();
 
 	this.currentFragment = null;
 
