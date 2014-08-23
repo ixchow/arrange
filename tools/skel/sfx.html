@@ -38,11 +38,11 @@ a {
 </style>
 <script>
 function sfx_start() {
-	[ 'wave', 'start_freq', 'end_freq', 'attack', 'decay'].forEach(function(s) {
-		document.getElementById(s).onChange = function() {
-			sfx_play();
-		}
-	});
+	// [ 'wave', 'start_freq', 'end_freq', 'attack', 'decay'].forEach(function(s) {
+	// 	document.getElementById(s).onChange = function() {
+	// 		sfx_play();
+	// 	}
+	// });
 }
 
 function sfx_play() {
@@ -51,7 +51,9 @@ function sfx_play() {
 	var end_freq = parseFloat(document.getElementById('end_freq').value);
 	var attack = parseFloat(document.getElementById('attack').value);
 	var decay = parseFloat(document.getElementById('decay').value);
-	engine.sfx(wave, start_freq, end_freq, attack, decay);
+	var vib_freq = parseFloat(document.getElementById('vib_freq').value);
+	var vib_effect = parseFloat(document.getElementById('vib_effect').value);
+	engine.sfx(wave, start_freq, end_freq, attack, decay, vib_freq, vib_effect);
 }
 
 </script>
@@ -69,6 +71,7 @@ function sfx_play() {
 	end freq: <input id="end_freq" value="880" /><br/>
 	attack (ms): <input id="attack" value="100" /><br/>
 	decay (ms): <input id="decay" value="400" /><br/>
+	vibrato: freq: <input id="vib_freq" value="10" />  magnitude: <input id="vib_effect" value="20" /><br/>
 	<button onclick="sfx_play()">Play</button>
 <p>
 (This is a LD game framework by avh4 and ix.)
