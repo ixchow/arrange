@@ -89,11 +89,15 @@ var ArrangeScene = function(level) {
 		up:new Vec3(0.0, 0.0, 1.0)
 	};
 
+	this.mouse2d = null; //screen position of mouse, if we have it
+
 	this.mouseDown = false;
 	this.hoverInfo = null; //info about tile mouse is hovering over
 	this.dragInfo = null; //info about tile mouse is dragging
 
 	this.spin = 0.0;
+
+	this.selectDrity = true;
 
 	return this;
 };
@@ -134,12 +138,35 @@ ArrangeScene.prototype.resize = function() {
 };
 
 ArrangeScene.prototype.update = function(elapsed) {
+	
+	//--- move the camera a bit just for the heck of it ---
 	this.spin += elapsed;
 	if (this.spin > 2.0 * Math.PI) this.spin = this.spin % (2.0 * Math.PI);
 
 	var ang = (Math.sin(this.spin) * 0.01- 0.75) * Math.PI;
 	this.camera.eye.x = Math.cos(ang) * 5.0;
 	this.camera.eye.y = Math.sin(ang) * 5.0;
+
+	var MV = lookAt(this.camera.eye, this.camera.target, this.camera.up);
+	var P = new Mat4(
+		0.1, 0.0, 0.0, 0.0,
+		0.0, 0.1 * (engine.Size.x / engine.Size.y), 0.0, 0.0,
+		0.0, 0.0,-0.1, 0.0,
+		0.0, 0.0, 0.0, 1.0
+	);
+	//Alt: use perspective projection:
+	//P = perspective(45.0, engine.Size.x / engine.Size.y, 0.1, 100.0);
+
+	this.MVP = P.times(MV);
+
+	//since the view is changing, mark select as dirty:
+	this.selectDirty = true;
+
+	//--- if dragging something, update mouse2d ---
+
+	if (this.dragInfo && this.mouse2d) {
+		this.updateDrag();
+	}
 }
 
 ArrangeScene.prototype.buildCombined = function() {
@@ -195,6 +222,9 @@ ArrangeScene.prototype.buildCombined = function() {
 	});
 
 	//TODO: check consistency
+
+	//building combined changes the scene, so mark select as dirty:
+	this.selectDirty = true;
 };
 
 //These should probably get moved:
@@ -246,18 +276,7 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 	var s = drawSelect?shaders.select:shaders.solid;
 	gl.useProgram(s);
 
-	var MV = lookAt(this.camera.eye, this.camera.target, this.camera.up);
-	var P = new Mat4(
-		0.1, 0.0, 0.0, 0.0,
-		0.0, 0.1 * (engine.Size.x / engine.Size.y), 0.0, 0.0,
-		0.0, 0.0,-0.1, 0.0,
-		0.0, 0.0, 0.0, 1.0
-	);
-	//P = perspective(45.0, engine.Size.x / engine.Size.y, 0.1, 100.0);
-
-	var MVP = P.times(MV);
-
-	this.MVP = MVP;
+	var MVP = this.MVP;
 
 	for (var x = 0; x < this.combined.size.x; ++x) {
 		for (var y = 0; y < this.combined.size.y; ++y) {
@@ -266,7 +285,7 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 
 			if (drawSelect) {
 				gl.vertexAttrib4f(s.aTag.location, x / 255.0, y / 255.0, 255, 255);
-				//TODO: draw floor, somehow.
+				//TODO: draw floor, perhaps.
 			}
 
 			tiles.forEach(function(t, ti){
@@ -289,26 +308,37 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 		}
 	}
 
-	if (!drawSelect && this.mouse3d) {
-		var ofs = new Mat4(
-			0.1, 0.0, 0.0, 0.0,
-			0.0, 0.1, 0.0, 0.0,
-			0.0, 0.0, 0.1, 0.0,
-			this.mouse3d.x, this.mouse3d.y, this.mouse3d.z, 1.0
-		);
-		gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(ofs));
-		meshes.shapes.sphere.emit();
+	if (!drawSelect) {
+		if (this.mouse2d) {
+			var mouse3d;
+			if (this.dragInfo) {
+				mouse3d = this.mouseToPlane(this.dragInfo.z);
+			} else if (this.hoverInfo) {
+				mouse3d = this.mouseToPlane(this.hoverInfo.z);
+			} else {
+				mouse3d = this.mouseToPlane(0.0);
+			}
+			var ofs = new Mat4(
+				0.1, 0.0, 0.0, 0.0,
+				0.0, 0.1, 0.0, 0.0,
+				0.0, 0.0, 0.1, 0.0,
+				mouse3d.x, mouse3d.y, mouse3d.z, 1.0
+			);
+			gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(ofs));
+			meshes.shapes.sphere.emit();
+		}
 	}
 
 	if (drawSelect) {
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+		this.selectDirty = false;
 	}
 };
 
-ArrangeScene.prototype.mouseToPlane = function(x,y,z) {
+ArrangeScene.prototype.mouseToPlane = function(z) {
 	//Convert x,y into screen units:
-	x = 2.0 * ((x + 0.5) / engine.Size.x - 0.5);
-	y = 2.0 * ((y + 0.5) / engine.Size.y - 0.5);
+	x = 2.0 * ((this.mouse2d.x + 0.5) / engine.Size.x - 0.5);
+	y = 2.0 * ((this.mouse2d.y + 0.5) / engine.Size.y - 0.5);
 
 	//project mouse position into plane at height 'z':
 	// Have px * MVP[ ... ] + py * MVP[ ... ] = pt
@@ -364,10 +394,12 @@ ArrangeScene.prototype.mouseToPlane = function(x,y,z) {
 ArrangeScene.prototype.setHoverInfo = function(x, y) {
 	this.hoverInfo = null;
 
-	this.mouse3d = null; //DEBUG
-
 	if (x < 0 || x >= engine.Size.x || y < 0 || y >= engine.Size.y) {
 		return;
+	}
+
+	if (this.selectDirty) {
+		this.drawHelper(true);
 	}
 
 	var tag = new Uint8Array(4);
@@ -387,7 +419,7 @@ ArrangeScene.prototype.setHoverInfo = function(x, y) {
 		} else {
 			var z = 0.0;
 			//TODO: read z from tag
-			var mouse3d = this.mouseToPlane(x,y,z);
+			var mouse3d = this.mouseToPlane(z);
 
 			var fragment = tiles[idx].fragment;
 			//var tile = tiles[idx].tile;
@@ -398,31 +430,37 @@ ArrangeScene.prototype.setHoverInfo = function(x, y) {
 				//tile:tile,
 				mouseToFragment:{x:fragment.at.x - mouse3d.x, y:fragment.at.y - mouse3d.y}
 			};
-
-			this.mouse3d = mouse3d; //DEBUG
 		}
 	}
 
 };
 
-ArrangeScene.prototype.mouse = function(x, y, isDown) {
-	if (this.dragInfo) {
-		//update thing we are dragging.
-		var mouse3d = this.mouseToPlane(x, y, this.dragInfo.z);
-		var want = {
-			x:mouse3d.x + this.dragInfo.mouseToFragment.x,
-			y:mouse3d.y + this.dragInfo.mouseToFragment.y
-		};
+ArrangeScene.prototype.updateDrag = function() {
+	var mouse3d = this.mouseToPlane(this.dragInfo.z);
+	var want = {
+		x:mouse3d.x + this.dragInfo.mouseToFragment.x,
+		y:mouse3d.y + this.dragInfo.mouseToFragment.y
+	};
+	want.x = Math.round(want.x);
+	want.y = Math.round(want.y);
+	if (this.dragInfo.fragment.at.x != want.x || this.dragInfo.fragment.at.y != want.y) {
 		this.dragInfo.fragment.at.x = Math.round(want.x);
 		this.dragInfo.fragment.at.y = Math.round(want.y);
-		this.buildCombined(); //TODO: should probably just set it dirty
-		this.drawHelper(true); //TODO: again, should probably just set dirty
+		this.buildCombined();
+		this.drawHelper(true);
 	}
+};
+
+ArrangeScene.prototype.mouse = function(x, y, isDown) {
+	this.mouse2d = {x:x, y:y};
 
 	if (!isDown && this.mouseDown) {
 		//release drag:
+		if (this.dragInfo) {
+			this.updateDrag();
+			this.dragInfo = null;
+		}
 		this.mouseDown = false;
-		this.dragInfo = null;
 	}
 
 	//if we aren't dragging, adjust hover info:
