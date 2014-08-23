@@ -1,6 +1,8 @@
 var Vec3 = engine.Vec3;
 var Mat4 = engine.Mat4;
 
+var TagZScale = 0.2;
+
 //Rotations are 0,1,2,3 corresponding to rotating CC in 90-degree increments.
 //rot() performs rotations around the center of tile (0,0)
 function rot(r, pt) {
@@ -213,12 +215,15 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 
 	if (drawSelect) {
 		gl.bindFramebuffer(gl.FRAMEBUFFER, selectFb);
+		gl.disable(gl.BLEND);
+	} else {
+		gl.disable(gl.BLEND); //unclear if we want to or not
 	}
 
 	//drawSelect = true; //DEBUG
 
 	if (drawSelect) {
-		gl.clearColor(1.0, 1.0, 1.0, 1.0);
+		gl.clearColor(1.0, 1.0, 1.0, 0.0);
 	} else {
 		gl.clearColor(0.2, 0.2, 0.2, 1.0);
 	}
@@ -231,14 +236,25 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 
 	var MVP = this.MVP;
 
+	if (drawSelect) {
+		gl.uniform3f(s.uZ.location, 0.0, 0.0, 0.5 * TagZScale);
+	}
+
 	for (var x = 0; x < this.combined.size.x; ++x) {
 		for (var y = 0; y < this.combined.size.y; ++y) {
 			var tiles = this.combined[y * this.combined.size.x + x];
 			var at = {x:this.combined.min.x + x, y:this.combined.min.y + y};
 
-			if (drawSelect) {
-				gl.vertexAttrib4f(s.aTag.location, x / 255.0, y / 255.0, 255, 255);
-				//TODO: draw floor, perhaps.
+			if (tiles.length && !drawSelect) {
+				//draw floor
+				var xf = new Mat4(
+					0.5, 0.0, 0.0, 0.0,
+					0.0, 0.5, 0.0, 0.0,
+					0.0, 0.0, 0.5, 0.0,
+					at.x, at.y, 0.0, 1.0
+				);
+				gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
+				meshes.tiles.empty.emit();
 			}
 
 			tiles.forEach(function(t, ti){
@@ -363,6 +379,7 @@ ArrangeScene.prototype.setHoverInfo = function(x, y) {
 	if (tag[0] != 255 && tag[1] != 255) {
 		var tiles = this.combined[tag[1] * this.combined.size.x + tag[0]];
 		var idx = tag[2];
+		var z = tag[3] / 255.0 / TagZScale;
 		if (idx == 255) {
 			//hmm, hitting floor, need to figure that out.
 			idx = 0;
@@ -370,8 +387,6 @@ ArrangeScene.prototype.setHoverInfo = function(x, y) {
 			console.log("Got index " + idx + " which exceeds " + tiles.length);
 			idx = 0;
 		} else {
-			var z = 0.0;
-			//TODO: read z from tag
 			var mouse3d = this.mouseToPlane(z);
 
 			var fragment = tiles[idx].fragment;
