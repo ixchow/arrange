@@ -44,30 +44,21 @@ builder_outputs = tools.BuildStrategy.parallel(builders)
 #write an html file (as a stream)
 from tools.minify import minify
 
-html = open('tools/skel/index.html', 'r').read()
-resources_html = ''
-resources_js = ''
-for output in builder_outputs:
-	resources_html += output.html
-	resources_js += output.js
+to_build = ['index', 'music'];
 
-html = html.replace('$RESOURCES', resources_html)
-html = html.replace('$JAVASCRIPT', minify(resources_js))
+for b in to_build:
+	skel_file = 'tools/skel/{0}.html'.format(b)
+	html = open(skel_file, 'r').read()
+	resources_html = ''
+	resources_js = ''
+	for output in builder_outputs:
+		resources_html += output.html
+		resources_js += output.js
 
-f = open('index.html', 'wb')
-f.write(html)
-f.close()
+	html = html.replace('$RESOURCES', resources_html)
+	html = html.replace('$JAVASCRIPT', minify(resources_js))
 
-html = open('tools/skel/music.html', 'r').read()
-resources_html = ''
-resources_js = ''
-for output in builder_outputs:
-	resources_html += output.html
-	resources_js += output.js
-
-html = html.replace('$RESOURCES', resources_html)
-html = html.replace('$JAVASCRIPT', (resources_js))
-
-f = open('music.html', 'wb')
-f.write(html)
-f.close()
+	out_file = '{0}.html'.format(b)
+	f = open(out_file, 'wb')
+	f.write(html)
+	f.close()
