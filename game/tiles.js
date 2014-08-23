@@ -5,7 +5,6 @@ var Tile = function(params) {
 	return this;
 };
 
-//Eventually tiles will have their own meshes.
 Tile.prototype.emit = function() {
 	if (typeof(this.mesh) == 'string') {
 		this.mesh = meshes.tiles[this.mesh];
