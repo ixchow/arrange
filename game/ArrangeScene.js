@@ -1,47 +1,6 @@
 var Vec3 = engine.Vec3;
 var Mat4 = engine.Mat4;
 
-var Tile = function(params) {
-	this.verts2 = [-0.4,-0.4, -0.4,0.4, 0.4,0.4, 0.4,-0.4];
-	this.color = {r:1.0, g:0.0, b:1.0};
-	for (n in params) {
-		this[n] = params[n];
-	}
-	return this;
-};
-
-//Eventually tiles will have their own meshes.
-Tile.prototype.emit = function() {
-	var vertsBuffer = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, vertsBuffer);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.verts2), gl.STREAM_DRAW);
-
-	var s = gl.getParameter(gl.CURRENT_PROGRAM);
-
-	gl.enableVertexAttribArray(s.aVertex.location);
-	gl.vertexAttribPointer(s.aVertex.location, 2, gl.FLOAT, false, 0, 0);
-
-	if (s.aColor) {
-		gl.vertexAttrib4f(s.aColor.location, this.color.r, this.color.g, this.color.b, 1.0);
-	}
-
-	gl.drawArrays(gl.LINE_LOOP, 0, this.verts2.length / 2);
-
-	gl.disableVertexAttribArray(s.aVertex.location);
-	gl.deleteBuffer(vertsBuffer);
-	delete vertsBuffer;
-};
-
-//Path tiles have an entrance to the west in their default orientation.
-var PathStart = new Tile({
-	//verts2:[0.0,-0.5, 0.0,0.5, 0.5,0.5, 0.
-});
-var PathEnd = new Tile({ });
-var PathStraight = new Tile({ });
-var PathLeft = new Tile({ });
-var PathRight = new Tile({ });
-var Block = new Tile({ });
-
 //Rotations are 0,1,2,3 corresponding to rotating CC in 90-degree increments.
 //rot() performs rotations around the center of tile (0,0)
 function rot(r, pt) {
@@ -71,22 +30,7 @@ var ArrangeScene = function(level) {
 	//The first tile in every fragment is the 'key' to the fragment,
 	//and generally the point of interaction for that fragment.
 	//It should be located at (0,0), since fragments rotate around (0,0)
-	this.fragments = [
-		{
-			at:{x:0, y:0}, r:0,
-			tiles:[
-				{at:{x:0,y:0},r:0, tile:PathStart},
-				{at:{x:1,y:1},r:0, tile:Block}
-			]
-		},
-		{
-			at:{x:1, y:2}, r:0,
-			tiles:[
-				{at:{x:0,y:0},r:1, tile:PathEnd},
-				{at:{x:0,y:0},r:1, tile:Block},
-			]
-		}
-	];
+	this.fragments = game.level1();
 
 	this.currentFragment = null;
 
