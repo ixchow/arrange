@@ -16,26 +16,6 @@ Tile.prototype.emit = function() {
 		this.mesh = meshes.tiles[this.mesh];
 	}
 	this.mesh.emit();
-	/*
-	var vertsBuffer = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, vertsBuffer);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.verts2), gl.STREAM_DRAW);
-
-	var s = gl.getParameter(gl.CURRENT_PROGRAM);
-
-	gl.enableVertexAttribArray(s.aVertex.location);
-	gl.vertexAttribPointer(s.aVertex.location, 2, gl.FLOAT, false, 0, 0);
-
-	if (s.aColor) {
-		gl.vertexAttrib4f(s.aColor.location, this.color.r, this.color.g, this.color.b, 1.0);
-	}
-
-	gl.drawArrays(gl.LINE_LOOP, 0, this.verts2.length / 2);
-
-	gl.disableVertexAttribArray(s.aVertex.location);
-	gl.deleteBuffer(vertsBuffer);
-	delete vertsBuffer;
-	*/
 };
 
 //Path tiles have an entrance to the west in their default orientation.
