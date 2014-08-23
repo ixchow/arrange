@@ -43,9 +43,9 @@ function music_start() {
 
 function music_play() {
   var mml = document.getElementById('mml').value;
-	mml = mml.replace('\n', ' ');
+	mml = mml.replace(/\n/g, ' ');
   mml = mml.toLowerCase();
-  mml = mml.replace('p', 'r');
+  mml = mml.replace(/p/g, 'r');
 	var mmls = mml.split(';');
 	var music = function(synth) {
 		return T("mml", {mml: mmls}, synth.in).set({buddies: synth.out});
