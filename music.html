@@ -4,201 +4,6 @@
 <title>Fragmented Memories</title>
 <script>
 window.engine = {};
-engine.core = (function(exports) {
-//Define some properties on engine:
-//engine.Tick controls how often the fixed-step update ('tick()') is called:
-engine.Tick = 1.0 / 60.0;
-
-//engine.DesiredAspect controls what sizes the game's canvas can take on:
-engine.DesiredAspect = {x:16, y:9}; //be exactly this aspect ratio
-//engine.DesiredAspect = undefined; //fill the #game div
-//engine.DesiredAspect = [{x:1, y:2}, {x:4,y:3}]; //pick whichever aspect ratio fits best
-
-//engine.Size is read-only and reflects the current size of the canvas:
-var Size = {x:NaN, y:NaN};
-Object.defineProperty(engine, "Size", {
-	configurable:false, enumerable:true,
-	get:function(){ return Size; }
-});
-
-
-//engine.CurrentScene is the scene all events are sent to:
-var CurrentScene = null;
-Object.defineProperty(engine, "CurrentScene", {
-	configurable:false,
-	enumerable:true,
-	get:function(){ return CurrentScene; },
-	set:function(val){
-		if (CurrentScene !== null) {
-			CurrentScene.leave && CurrentScene.leave();
-		}
-		CurrentScene = val;
-		if (CurrentScene !== null) {
-			CurrentScene.enter && CurrentScene.enter();
-		}
-	}
-});
-
-//----------------------------------------------------
-
-exports.init = function(onstart) {
-
-	//--------------------------
-	//initialize canvas and WebGL:
-	var canvas = document.getElementById("canvas");
-
-	canvas.onmousemove = engine.mouse.move;
-	canvas.onmousedown = engine.mouse.down;
-	canvas.onmouseup = engine.mouse.up;
-	
-	engine.music.play(music.gymnopedie, synths.fat);
-
-	//based on:
-	// https://developer.mozilla.org/en-US/docs/WebGL/Getting_started_with_WebGL
-
-	window.gl = null;
-	try {
-		var attribs = {};
-		attribs.antialias = false;
-		gl = canvas.getContext("webgl", attribs) || canvas.getcontext("experimental-webgl", attribs);
-	}
-	catch(e) {
-		console.log("Exception creating webgl context: " + e);
-	}
-
-	if (!gl) {
-		alert("Unable to initialize WebGL.");
-		//TODO: some sort of error handling that's a bit more graceful.
-		return;
-	}
-
-	gl.clearColor(0.0, 0.0, 0.0, 1.0);
-	gl.clear(gl.COLOR_BUFFER_BIT);
-
-	//----------------------------------
-	//resizing behavior:
-
-	//The idea is that the canvas fits inside the frame, and has its width and height changed [shrunk] to satisfy desired properties.
-	function resized() {
-		var game = document.getElementById("game");
-		var game_style = getComputedStyle(game);
-		var max_size = {x:game.clientWidth, y:game.clientHeight};
-		max_size.x -= parseInt(game_style["padding-left"]) + parseInt(game_style["padding-right"]);
-		max_size.y -= parseInt(game_style["padding-top"]) + parseInt(game_style["padding-bottom"]);
-
-		//Lower limit to size:
-		max_size.x = Math.max(100, max_size.x);
-		max_size.y = Math.max(100, max_size.y);
-
-		var best_size = {x:0, y:0};
-		function tryAspect(a) {
-			var mul = Math.floor(max_size.x / a.x);
-			if (a.y * mul > max_size.y) {
-				mul = Math.floor(max_size.y / a.y);
-			}
-			var test_size = {x:a.x * mul, y:a.y * mul};
-			if (test_size.x * test_size.y > best_size.x * best_size.y) {
-				best_size.x = test_size.x;
-				best_size.y = test_size.y;
-			}
-		}
-
-		if (engine.DesiredAspect === undefined) {
-			//great!
-			best_size.x = Math.floor(max_size.x);
-			best_size.y = Math.floor(max_size.y);
-		} else if ('forEach' in engine.DesiredAspect) {
-			engine.DesiredAspect.forEach(tryAspect);
-		} else {
-			tryAspect(engine.DesiredAspect);
-		}
-		if (best_size.x != Size.x || best_size.y != Size.y) {
-			console.log("New size is: " + best_size.x + " x " + best_size.y);
-			Size.x = best_size.x;
-			Size.y = best_size.y;
-			canvas.style.width = Size.x + "px";
-			canvas.style.height = Size.y + "px";
-			canvas.width = Size.x;
-			canvas.height = Size.y;
-			gl.viewport(0,0,Size.x,Size.y);
-			//Notify current scene, if there is one:
-			CurrentScene && CurrentScene.resize && CurrentScene.resize();
-		}
-	}
-
-	window.addEventListener('resize', resized);
-	resized();
-
-	//--------------------------
-	//init various openGL data:
-	if (!engine.initShaders()) return;
-	if (!engine.initMeshes()) return;
-
-	//--------------------------
-	//set up scene handling:
-	var requestAnimFrame =
-		window.requestAnimationFrame
-		|| window.webkitRequestAnimationFrame
-		|| window.mozRequestAnimationFrame
-		|| window.oRequestAnimationFrame
-		|| window.msRequestAnimationFrame
-	;
-
-	if (!requestAnimFrame) {
-		alert("browser does not appear to support requestAnimationFrame");
-		return;
-	}
-
-	//TODO: first scene should probably wait for resources to be loaded
-	// before handing control over to the game.
-
-	onstart();
-
-	var previous = NaN;
-	var acc = 0.0;
-	function animate(timestamp) {
-		if (!CurrentScene) return;
-
-		if (isNaN(previous)) {
-			previous = timestamp;
-		}
-		var elapsed = (timestamp - previous) / 1000.0;
-		previous = timestamp;
-
-		//Run tick (fixed timestep):
-		acc += elapsed;
-		while (acc > engine.Tick * 0.5) {
-			acc -= engine.Tick;
-			CurrentScene.tick && CurrentScene.tick();
-			if (!CurrentScene) return;
-		}
-
-		//Run update (variable timestep):
-		CurrentScene.update && CurrentScene.update(elapsed);
-		if (!CurrentScene) return;
-
-		//Draw:
-		CurrentScene.draw();
-		if (!CurrentScene) return;
-
-		requestAnimFrame(animate);
-	}
-
-	requestAnimFrame(animate);
-
-	//---------------------------------------------------
-
-	console.log("  >=>       >====>     >=======> >=>        >=> ");
-	console.log("  >=>       >=>   >=>  >=>       >=>        >=> ");
-	console.log("  >=>       >=>    >=> >=>       >=>   >>   >=> ");
-	console.log("  >=>       >=>    >=> >=====>   >=>  >=>   >=> ");
-	console.log("  >=>       >=>    >=> >=>       >=> >> >=> >=> ");
-	console.log("  >=>       >=>   >=>  >=>       >> >>    >===> ");
-	console.log("  >=======> >====>     >=>       >=>        >=> ");
-};
-
-return exports;
-})({});
 engine.initMeshes = (function(exports) {
 exports = function() {
 	return true;
@@ -206,158 +11,23 @@ exports = function() {
 
 return exports;
 })({});
-engine.initShaders = (function(exports) {
-exports = function() {
-	var scripts = document.getElementsByTagName("script");
-	var programNames = {};
+engine.music = (function(exports) {
+var currentAudio;
 
-	function getProgram(id) {
-		var path = id.split('.');
-		var name = path.pop();
-		//Walk to parent of desired program:
-		var par = window;
-		path.forEach(function(n) {
-			if (!par.hasOwnProperty(n)) {
-				par[n] = {}; //create objects all the way up...
-			}
-			par = par[n];
-		});
-
-		//Create program if needed:
-		if (!par.hasOwnProperty(name)) {
-			par[name] = gl.createProgram();
-		} else {
-			//TODO: check if par[name] is {}
-		}
-
-		return par[name];
+exports = {
+	play: function(music, synth) {
+		currentAudio = music(synth);
+		currentAudio.start();
+	},
+	mute: function() {
+		if (!currentAudio) return;
+		currentAudio.stop();
+	},
+	unmute: function() {
+		if (!currentAudio) return;
+		currentAudio.start();
 	}
-
-	function readScript(script) {
-		var ret = "";
-		var currentChild = script.firstChild;
-	 
-		while(currentChild) {
-			if (currentChild.nodeType == currentChild.TEXT_NODE) {
-				ret += currentChild.textContent;
-			}
-			currentChild = currentChild.nextSibling;
-		}
-		return ret;
-	}
-
-	//Attach fragment and vertex shaders from scripts:
-	for (var i = 0; i < scripts.length; ++i) {
-		var script = scripts[i];
-		var shaderType = undefined;
-		var id = script.id;
-
-		if (script.type == "x-shader/x-fragment") {
-			shaderType = gl.FRAGMENT_SHADER;
-			if (id.substr(id.length-3,3) != ".fs") {
-				console.error("Shader has id '" + id + "'; expecting suffix '.fs'");
-				return false;
-			}
-		} else if (script.type == "x-shader/x-vertex") {
-			shaderType = gl.VERTEX_SHADER;
-			if (id.substr(id.length-3,3) != ".vs") {
-				console.error("Shader has id '" + id + "'; expecting suffix '.vs'");
-				return false;
-			}
-		} else {
-			continue;
-		}
-		id = id.substr(0, id.length-3);
-		programNames[id] = id;
-
-		var program = getProgram(id);
-		var shader = gl.createShader(shaderType);
-		var source = readScript(script);
-		gl.shaderSource(shader, source);
-		gl.compileShader(shader);
-		if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-			console.error("Failed to compile shader " + script.id + ": " + gl.getShaderInfoLog(vs));
-			return false;
-		}
-		gl.attachShader(program, shader);
-	}
-
-	//Now that shaders are attached, link programs:
-	for (name in programNames) {
-		var program = getProgram(name);
-		gl.linkProgram(program);
-
-		if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-			console.error("Unable to link shader program '" + name + "'");
-			return false;
-		}
-
-		var na = gl.getProgramParameter(program, gl.ACTIVE_ATTRIBUTES);
-		for (var i = 0; i < na; ++i) {
-			var a = gl.getActiveAttrib(program, i);
-			program[a.name] = {
-				location:i,
-				type:a.type,
-				size:a.size
-			};
-		}
-
-		var nu = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
-		for (var i = 0; i < nu; ++i) {
-			var u = gl.getActiveUniform(program, i);
-			program[u.name] = {
-				location:gl.getUniformLocation(program, u.name),
-				type:a.type,
-				size:a.size
-			};
-		}
-	}
-
-	return true;
 };
-
-return exports;
-})({});
-engine.Mat4 = (function(exports) {
-var Mat4 = function() {
-	var mat4 = null;
-	if (arguments.length == 16) {
-		mat4 = new Float32Array(arguments);
-	} else if (arguments.length == 4) {
-		mat4 = new Float32Array([
-			arguments[0].x, arguments[0].y, arguments[0].z, arguments[0].w,
-			arguments[1].x, arguments[1].y, arguments[1].z, arguments[1].w,
-			arguments[2].x, arguments[2].y, arguments[2].z, arguments[2].w,
-			arguments[3].x, arguments[3].y, arguments[3].z, arguments[3].w
-			]);
-	} else if (arguments.length == 1) {
-		mat4 = new Float32Array([
-			arguments[0], 0.0, 0.0, 0.0,
-			0.0, arguments[0], 0.0, 0.0,
-			0.0, 0.0, arguments[0], 0.0,
-			0.0, 0.0, 0.0, arguments[0]
-			]);
-	} else {
-		throw "Invalid arguments to Mat4 constructor";
-	}
-
-	mat4.times = function(b) {
-		var ret = new Mat4(0.0);
-		for (var c = 0; c < 4; ++c) {
-			for (var r = 0; r < 4; ++r) {
-				for (var i = 0; i < 4; ++i) {
-					ret[c * 4 + r] += this[i * 4 + r] * b[c * 4 + i];
-				}
-			}
-		}
-		return ret;
-	};
-
-	return mat4;
-};
-
-exports = Mat4;
-
 return exports;
 })({});
 engine.MersenneTwister = (function(exports) {
@@ -595,116 +265,6 @@ exports = MersenneTwister;
 
 return exports;
 })({});
-engine.Mesh = (function(exports) {
-var Mesh = function(data) {
-	//TODO: create vertex buffer for mesh, upload mesh data.
-	this.verts3 = data.verts3;
-	this.colors4 = data.colors4;
-	this.localToWorld = data.localToWorld;
-	this.localToParent = data.localToParent;
-	return this;
-};
-
-Mesh.prototype.emit = function(MVP) {
-	//TODO: multiply local matrix with 
-};
-
-exports = Mesh;
-
-return exports;
-})({});
-engine.mouse = (function(exports) {
-var isDown = false;
-
-function send(e) {
-	engine.CurrentScene.mouse && engine.CurrentScene.mouse(e.x, e.y, isDown);
-}
-
-exports = {
-	move: function(e) {
-		send(e);
-	},
-	down: function(e) {
-		isDown = true;
-		send(e);
-	},
-	up: function(e) {
-		isDown = false;
-		send(e);
-	}
-}
-return exports;
-})({});
-engine.music = (function(exports) {
-var currentAudio;
-
-exports = {
-	play: function(music, synth) {
-		currentAudio = music(synth);
-		currentAudio.start();
-	},
-	mute: function() {
-		if (!currentAudio) return;
-		currentAudio.stop();
-	},
-	unmute: function() {
-		if (!currentAudio) return;
-		currentAudio.start();
-	}
-};
-return exports;
-})({});
-engine.Tile = (function(exports) {
-var Tile = function(mesh) {
-	this.mesh = mesh;
-	//this.collide = ; //TBD
-	return this;
-};
-
-Tile.prototype.emitAt = function(MVP, x, y) {
-/*
-	var program = gl.getParameter(gl.CURRENT_PROGRAM);
-
-	var vertsBuffer = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, vertsBuffer);
-
-	gl.enableVertexAttribArray(s.aVertex.location);
-	gl.vertexAttribPointer(s.aVertex.location, 3, gl.FLOAT, false, 0, 0);
-
-	gl.vertexAttrib4f(s.aColor.location, 0.5, 0.5, 0.0, 1.0);
-
-	gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(tileofs).times(this.mesh.localToWorld));
-	gl.bufferData(gl.ARRAY_BUFFER, this.mesh.verts3, gl.STREAM_DRAW);
-	gl.drawArrays(gl.TRIANGLES, 0, this.mesh.verts3.length / 3);
-
-	gl.vertexAttrib4f(s.aColor.location, 0.2, 0.7, 0.0, 1.0);
-	gl.uniformMatrix4fv(s.uMVP.location, false, P.times(MV).times(this.mesh.leaves1.localToWorld));
-	gl.bufferData(gl.ARRAY_BUFFER, this.mesh.leaves1.verts3, gl.STREAM_DRAW);
-	gl.drawArrays(gl.TRIANGLES, 0, this.mesh.leaves1.verts3.length / 3);
-
-	gl.vertexAttrib4f(s.aColor.location, 0.1, 0.8, 0.1, 1.0);
-	gl.uniformMatrix4fv(s.uMVP.location, false, P.times(MV).times(this.mesh.leaves2.localToWorld));
-	gl.bufferData(gl.ARRAY_BUFFER, this.mesh.leaves2.verts3, gl.STREAM_DRAW);
-	gl.drawArrays(gl.TRIANGLES, 0, this.mesh.leaves2.verts3.length / 3);
-
-	for (var r = 0; r < this.rows; ++r) {
-		for (var c = 0; c < this.map[r].length; ++c) {
-			tile = this.tileset[this.map[r][c]];
-			if (tile === undefined) continue;
-
-		}
-	}
-
-	gl.disableVertexAttribArray(s.aVertex.location);
-	gl.deleteBuffer(vertsBuffer);
-	delete vertsBuffer;
-*/
-};
-
-exports = Tile;
-
-return exports;
-})({});
 engine.Tilemap = (function(exports) {
 /*
  * Tilemaps work on a TileSet,
@@ -780,44 +340,359 @@ exports = Tilemap;
 
 return exports;
 })({});
-engine.Vec2 = (function(exports) {
-var Vec2 = function(x,y) {
-	this.x = x;
-	this.y = y;
+engine.initShaders = (function(exports) {
+exports = function() {
+	var scripts = document.getElementsByTagName("script");
+	var programNames = {};
+
+	function getProgram(id) {
+		var path = id.split('.');
+		var name = path.pop();
+		//Walk to parent of desired program:
+		var par = window;
+		path.forEach(function(n) {
+			if (!par.hasOwnProperty(n)) {
+				par[n] = {}; //create objects all the way up...
+			}
+			par = par[n];
+		});
+
+		//Create program if needed:
+		if (!par.hasOwnProperty(name)) {
+			par[name] = gl.createProgram();
+		} else {
+			//TODO: check if par[name] is {}
+		}
+
+		return par[name];
+	}
+
+	function readScript(script) {
+		var ret = "";
+		var currentChild = script.firstChild;
+	 
+		while(currentChild) {
+			if (currentChild.nodeType == currentChild.TEXT_NODE) {
+				ret += currentChild.textContent;
+			}
+			currentChild = currentChild.nextSibling;
+		}
+		return ret;
+	}
+
+	//Attach fragment and vertex shaders from scripts:
+	for (var i = 0; i < scripts.length; ++i) {
+		var script = scripts[i];
+		var shaderType = undefined;
+		var id = script.id;
+
+		if (script.type == "x-shader/x-fragment") {
+			shaderType = gl.FRAGMENT_SHADER;
+			if (id.substr(id.length-3,3) != ".fs") {
+				console.error("Shader has id '" + id + "'; expecting suffix '.fs'");
+				return false;
+			}
+		} else if (script.type == "x-shader/x-vertex") {
+			shaderType = gl.VERTEX_SHADER;
+			if (id.substr(id.length-3,3) != ".vs") {
+				console.error("Shader has id '" + id + "'; expecting suffix '.vs'");
+				return false;
+			}
+		} else {
+			continue;
+		}
+		id = id.substr(0, id.length-3);
+		programNames[id] = id;
+
+		var program = getProgram(id);
+		var shader = gl.createShader(shaderType);
+		var source = readScript(script);
+		gl.shaderSource(shader, source);
+		gl.compileShader(shader);
+		if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+			console.error("Failed to compile shader " + script.id + ": " + gl.getShaderInfoLog(vs));
+			return false;
+		}
+		gl.attachShader(program, shader);
+	}
+
+	//Now that shaders are attached, link programs:
+	for (name in programNames) {
+		var program = getProgram(name);
+		gl.linkProgram(program);
+
+		if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+			console.error("Unable to link shader program '" + name + "'");
+			return false;
+		}
+
+		var na = gl.getProgramParameter(program, gl.ACTIVE_ATTRIBUTES);
+		for (var i = 0; i < na; ++i) {
+			var a = gl.getActiveAttrib(program, i);
+			program[a.name] = {
+				location:i,
+				type:a.type,
+				size:a.size
+			};
+		}
+
+		var nu = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
+		for (var i = 0; i < nu; ++i) {
+			var u = gl.getActiveUniform(program, i);
+			program[u.name] = {
+				location:gl.getUniformLocation(program, u.name),
+				type:a.type,
+				size:a.size
+			};
+		}
+	}
+
+	return true;
+};
+
+return exports;
+})({});
+engine.Tile = (function(exports) {
+var Tile = function(mesh) {
+	this.mesh = mesh;
+	//this.collide = ; //TBD
 	return this;
 };
 
-Vec2.prototype.plus = function(b) {
-	return new Vec2(this.x + b.x, this.y + b.y);
-};
+Tile.prototype.emitAt = function(MVP, x, y) {
+/*
+	var program = gl.getParameter(gl.CURRENT_PROGRAM);
 
-Vec2.prototype.minus = function(b) {
-	return new Vec2(this.x - b.x, this.y - b.y);
-};
+	var vertsBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, vertsBuffer);
 
-Vec2.prototype.times = function(s) {
-	return new Vec2(s * this.x, s * this.y);
-}
+	gl.enableVertexAttribArray(s.aVertex.location);
+	gl.vertexAttribPointer(s.aVertex.location, 3, gl.FLOAT, false, 0, 0);
 
-Vec2.prototype.dot = function(b) {
-	return this.x * b.x + this.y * b.y;
-}
+	gl.vertexAttrib4f(s.aColor.location, 0.5, 0.5, 0.0, 1.0);
 
-Vec2.prototype.perpendicular = function() {
-	return new Vec2(-this.y, this.x);
-}
+	gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(tileofs).times(this.mesh.localToWorld));
+	gl.bufferData(gl.ARRAY_BUFFER, this.mesh.verts3, gl.STREAM_DRAW);
+	gl.drawArrays(gl.TRIANGLES, 0, this.mesh.verts3.length / 3);
 
-Vec2.prototype.normalized = function() {
-	var invMag = Math.sqrt(this.dot(this));
-	if (invMag == 0.0) {
-		return new Vec2(1, 0);
-	} else {
-		invMag = 1.0 / invMag;
-		return this.times(invMag);
+	gl.vertexAttrib4f(s.aColor.location, 0.2, 0.7, 0.0, 1.0);
+	gl.uniformMatrix4fv(s.uMVP.location, false, P.times(MV).times(this.mesh.leaves1.localToWorld));
+	gl.bufferData(gl.ARRAY_BUFFER, this.mesh.leaves1.verts3, gl.STREAM_DRAW);
+	gl.drawArrays(gl.TRIANGLES, 0, this.mesh.leaves1.verts3.length / 3);
+
+	gl.vertexAttrib4f(s.aColor.location, 0.1, 0.8, 0.1, 1.0);
+	gl.uniformMatrix4fv(s.uMVP.location, false, P.times(MV).times(this.mesh.leaves2.localToWorld));
+	gl.bufferData(gl.ARRAY_BUFFER, this.mesh.leaves2.verts3, gl.STREAM_DRAW);
+	gl.drawArrays(gl.TRIANGLES, 0, this.mesh.leaves2.verts3.length / 3);
+
+	for (var r = 0; r < this.rows; ++r) {
+		for (var c = 0; c < this.map[r].length; ++c) {
+			tile = this.tileset[this.map[r][c]];
+			if (tile === undefined) continue;
+
+		}
 	}
-}
 
-exports = Vec2;
+	gl.disableVertexAttribArray(s.aVertex.location);
+	gl.deleteBuffer(vertsBuffer);
+	delete vertsBuffer;
+*/
+};
+
+exports = Tile;
+
+return exports;
+})({});
+engine.core = (function(exports) {
+//Define some properties on engine:
+//engine.Tick controls how often the fixed-step update ('tick()') is called:
+engine.Tick = 1.0 / 60.0;
+
+//engine.DesiredAspect controls what sizes the game's canvas can take on:
+engine.DesiredAspect = {x:16, y:9}; //be exactly this aspect ratio
+//engine.DesiredAspect = undefined; //fill the #game div
+//engine.DesiredAspect = [{x:1, y:2}, {x:4,y:3}]; //pick whichever aspect ratio fits best
+
+//engine.Size is read-only and reflects the current size of the canvas:
+var Size = {x:NaN, y:NaN};
+Object.defineProperty(engine, "Size", {
+	configurable:false, enumerable:true,
+	get:function(){ return Size; }
+});
+
+
+//engine.CurrentScene is the scene all events are sent to:
+var CurrentScene = null;
+Object.defineProperty(engine, "CurrentScene", {
+	configurable:false,
+	enumerable:true,
+	get:function(){ return CurrentScene; },
+	set:function(val){
+		if (CurrentScene !== null) {
+			CurrentScene.leave && CurrentScene.leave();
+		}
+		CurrentScene = val;
+		if (CurrentScene !== null) {
+			CurrentScene.enter && CurrentScene.enter();
+		}
+	}
+});
+
+//----------------------------------------------------
+
+exports.init = function(onstart) {
+
+	//--------------------------
+	//initialize canvas and WebGL:
+	var canvas = document.getElementById("canvas");
+
+	canvas.onmousemove = engine.mouse.move;
+	canvas.onmousedown = engine.mouse.down;
+	canvas.onmouseup = engine.mouse.up;
+
+	//based on:
+	// https://developer.mozilla.org/en-US/docs/WebGL/Getting_started_with_WebGL
+
+	window.gl = null;
+	try {
+		var attribs = {};
+		attribs.antialias = false;
+		gl = canvas.getContext("webgl", attribs) || canvas.getcontext("experimental-webgl", attribs);
+	}
+	catch(e) {
+		console.log("Exception creating webgl context: " + e);
+	}
+
+	if (!gl) {
+		alert("Unable to initialize WebGL.");
+		//TODO: some sort of error handling that's a bit more graceful.
+		return;
+	}
+
+	gl.clearColor(0.0, 0.0, 0.0, 1.0);
+	gl.clear(gl.COLOR_BUFFER_BIT);
+
+	//----------------------------------
+	//resizing behavior:
+
+	//The idea is that the canvas fits inside the frame, and has its width and height changed [shrunk] to satisfy desired properties.
+	function resized() {
+		var game = document.getElementById("game");
+		var game_style = getComputedStyle(game);
+		var max_size = {x:game.clientWidth, y:game.clientHeight};
+		max_size.x -= parseInt(game_style["padding-left"]) + parseInt(game_style["padding-right"]);
+		max_size.y -= parseInt(game_style["padding-top"]) + parseInt(game_style["padding-bottom"]);
+
+		//Lower limit to size:
+		max_size.x = Math.max(100, max_size.x);
+		max_size.y = Math.max(100, max_size.y);
+
+		var best_size = {x:0, y:0};
+		function tryAspect(a) {
+			var mul = Math.floor(max_size.x / a.x);
+			if (a.y * mul > max_size.y) {
+				mul = Math.floor(max_size.y / a.y);
+			}
+			var test_size = {x:a.x * mul, y:a.y * mul};
+			if (test_size.x * test_size.y > best_size.x * best_size.y) {
+				best_size.x = test_size.x;
+				best_size.y = test_size.y;
+			}
+		}
+
+		if (engine.DesiredAspect === undefined) {
+			//great!
+			best_size.x = Math.floor(max_size.x);
+			best_size.y = Math.floor(max_size.y);
+		} else if ('forEach' in engine.DesiredAspect) {
+			engine.DesiredAspect.forEach(tryAspect);
+		} else {
+			tryAspect(engine.DesiredAspect);
+		}
+		if (best_size.x != Size.x || best_size.y != Size.y) {
+			console.log("New size is: " + best_size.x + " x " + best_size.y);
+			Size.x = best_size.x;
+			Size.y = best_size.y;
+			canvas.style.width = Size.x + "px";
+			canvas.style.height = Size.y + "px";
+			canvas.width = Size.x;
+			canvas.height = Size.y;
+			gl.viewport(0,0,Size.x,Size.y);
+			//Notify current scene, if there is one:
+			CurrentScene && CurrentScene.resize && CurrentScene.resize();
+		}
+	}
+
+	window.addEventListener('resize', resized);
+	resized();
+
+	//--------------------------
+	//init various openGL data:
+	if (!engine.initShaders()) return;
+	if (!engine.initMeshes()) return;
+
+	//--------------------------
+	//set up scene handling:
+	var requestAnimFrame =
+		window.requestAnimationFrame
+		|| window.webkitRequestAnimationFrame
+		|| window.mozRequestAnimationFrame
+		|| window.oRequestAnimationFrame
+		|| window.msRequestAnimationFrame
+	;
+
+	if (!requestAnimFrame) {
+		alert("browser does not appear to support requestAnimationFrame");
+		return;
+	}
+
+	//TODO: first scene should probably wait for resources to be loaded
+	// before handing control over to the game.
+
+	onstart();
+
+	var previous = NaN;
+	var acc = 0.0;
+	function animate(timestamp) {
+		if (!CurrentScene) return;
+
+		if (isNaN(previous)) {
+			previous = timestamp;
+		}
+		var elapsed = (timestamp - previous) / 1000.0;
+		previous = timestamp;
+
+		//Run tick (fixed timestep):
+		acc += elapsed;
+		while (acc > engine.Tick * 0.5) {
+			acc -= engine.Tick;
+			CurrentScene.tick && CurrentScene.tick();
+			if (!CurrentScene) return;
+		}
+
+		//Run update (variable timestep):
+		CurrentScene.update && CurrentScene.update(elapsed);
+		if (!CurrentScene) return;
+
+		//Draw:
+		CurrentScene.draw();
+		if (!CurrentScene) return;
+
+		requestAnimFrame(animate);
+	}
+
+	requestAnimFrame(animate);
+
+	//---------------------------------------------------
+
+	console.log("  >=>       >====>     >=======> >=>        >=> ");
+	console.log("  >=>       >=>   >=>  >=>       >=>        >=> ");
+	console.log("  >=>       >=>    >=> >=>       >=>   >>   >=> ");
+	console.log("  >=>       >=>    >=> >=====>   >=>  >=>   >=> ");
+	console.log("  >=>       >=>    >=> >=>       >=> >> >=> >=> ");
+	console.log("  >=>       >=>   >=>  >=>       >> >>    >===> ");
+	console.log("  >=======> >====>     >=>       >=>        >=> ");
+};
 
 return exports;
 })({});
@@ -868,147 +743,209 @@ exports = Vec3
 
 return exports;
 })({});
-window.game = {};
-game.ArrangeScene = (function(exports) {
-//Path tiles have an entrance to the west in their default orientation.
-var PathStart = {
-};
-var PathEnd = {
-};
-var PathStraight = {
-};
-var PathLeft = {
-};
-var PathRight = {
-};
-
-var Block = {
-};
-
-//Rotations are 0,1,2,3 corresponding to rotating CC in 90-degree increments.
-//rot() performs rotations around the center of tile (0,0)
-function rot(r, pt) {
-	if (r < 0) r = (r % 4) + 4;
-	else if (r >= 4) r = r % 4;
-
-	if (r == 0) {
-		return {x:pt.x, y:pt.y};
-	} else if (r == 1) {
-		return {x:-pt.y, y:pt.x};
-	} else if (r == 2) {
-		return {x:-pt.x, y:-pt.y};
-	} else if (r == 3) {
-		return {x:pt.y, y:-pt.x};
-	}
-}
-
-var ArrangeScene = function(level) {
-	//TODO: actually load level from level.
-
-	//The first tile in every fragment is the 'key' to the fragment,
-	//and generally the point of interaction for that fragment.
-	//It should be located at (0,0), since fragments rotate around (0,0)
-	this.fragments = [
-		{
-			at:{x:0, y:0}, r:0,
-			tiles:[
-				{at:{x:0,y:0},r:0, tile:PathStart},
-				{at:{x:1,y:1},r:0, tile:Block}
-			]
-		},
-		{
-			at:{x:10, y:10}, r:0,
-			tiles:[
-				{at:{x:0,y:0},r:1, tile:PathEnd},
-				{at:{x:0,y:0},r:1, tile:Block},
-			]
-		}
-	];
-
-	this.currentFragment = null;
-
-	this.buildCombined();
-
+engine.Vec2 = (function(exports) {
+var Vec2 = function(x,y) {
+	this.x = x;
+	this.y = y;
 	return this;
 };
 
-ArrangeScene.prototype.buildCombined = function() {
-	//Splat all fragments into this.combined (a rectangular grid)
-
-	//First figure out the size of grid we need:
-	var min = {x:Infinity, y:Infinity};
-	var max = {x:-Infinity, y:-Infinity};
-	this.fragments.forEach(function(f){
-		f.tiles.forEach(function(t){
-			var at = rot(f.r, t.at);
-			at.x += f.at.x;
-			at.y += f.at.y;
-			min.x = Math.min(min.x, at.x);
-			min.y = Math.min(min.y, at.y);
-			max.x = Math.max(max.x, at.x);
-			max.y = Math.max(max.y, at.y);
-		});
-	});
-
-	//Allocate the grid:
-	if (min.x > max.x || min.y > max.y) {
-		this.combined = [];
-		this.combined.min = {x:0, y:0};
-		this.combined.size = {x:0, y:0};
-		return;
-	}
-	this.combined = Array((max.x - min.x + 1) * (max.y - min.y + 1));
-	this.combined.min = min;
-	this.combined.size = {x:max.x - min.x + 1, y:max.y - min.y + 1};
-
-	this.combined.index = function(at) {
-		return (at.y - this.min.y) * this.size.x + (at.x - this.min.x);
-	};
-
-	//Each cell of combined stores a list of tiles:
-	for (var i = 0; i < this.combined.length; ++i) {
-		this.combined[i] = [];
-	}
-
-	//Fill in the lists:
-	var combined = this.combined;
-	this.fragments.forEach(function(f){
-		f.tiles.forEach(function(t){
-			var at = rot(f.r, t.at);
-			at.x += f.at.x;
-			var r = (t.r + f.r) % 4;
-
-			var idx = combined.index(at);
-			combined[idx].push({r:r, tile:t.tile});
-		});
-	});
-
-	//TODO: check consistency
+Vec2.prototype.plus = function(b) {
+	return new Vec2(this.x + b.x, this.y + b.y);
 };
 
-ArrangeScene.prototype.draw = function() {
-	gl.clearColor(0.2, 0.2, 0.2, 1.0);
-	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-	for (var x = 0; x < this.combined.size.x; ++x) {
-		for (var y = 0; y < this.combined.size.y; ++y) {
-			var tiles = this.combined[y * this.combined.size.x + x];
-			var at = {x:this.combined.min.x + x, y:this.combined.min.y + y};
-
-			tiles.forEach(function(t){
-				//TODO: set up transform based on at,r
-				//TODO: draw tile's mesh
-			});
-
-		}
-	}
+Vec2.prototype.minus = function(b) {
+	return new Vec2(this.x - b.x, this.y - b.y);
 };
 
+Vec2.prototype.times = function(s) {
+	return new Vec2(s * this.x, s * this.y);
+}
 
-exports = ArrangeScene;
+Vec2.prototype.dot = function(b) {
+	return this.x * b.x + this.y * b.y;
+}
+
+Vec2.prototype.perpendicular = function() {
+	return new Vec2(-this.y, this.x);
+}
+
+Vec2.prototype.normalized = function() {
+	var invMag = Math.sqrt(this.dot(this));
+	if (invMag == 0.0) {
+		return new Vec2(1, 0);
+	} else {
+		invMag = 1.0 / invMag;
+		return this.times(invMag);
+	}
+}
+
+exports = Vec2;
 
 return exports;
 })({});
+engine.mouse = (function(exports) {
+var isDown = false;
+var canvas = null;
+
+function send(e) {
+	if (!canvas) canvas = document.getElementById("canvas");
+	var rect = canvas.getBoundingClientRect();
+	var x = (e.clientX - rect.left) | 0;
+	var y = engine.Size.y - 1 - ((e.clientY - rect.top) | 0);
+	engine.CurrentScene.mouse && engine.CurrentScene.mouse(x, y, isDown);
+}
+
+exports = {
+	move: function(e) {
+		send(e);
+		return false;
+	},
+	down: function(e) {
+		isDown = true;
+		send(e);
+		return false;
+	},
+	up: function(e) {
+		isDown = false;
+		send(e);
+		return false;
+	}
+}
+
+return exports;
+})({});
+engine.Mat4 = (function(exports) {
+var Mat4 = function() {
+	var mat4 = null;
+	if (arguments.length == 16) {
+		mat4 = new Float32Array(arguments);
+	} else if (arguments.length == 4) {
+		mat4 = new Float32Array([
+			arguments[0].x, arguments[0].y, arguments[0].z, arguments[0].w,
+			arguments[1].x, arguments[1].y, arguments[1].z, arguments[1].w,
+			arguments[2].x, arguments[2].y, arguments[2].z, arguments[2].w,
+			arguments[3].x, arguments[3].y, arguments[3].z, arguments[3].w
+			]);
+	} else if (arguments.length == 1) {
+		mat4 = new Float32Array([
+			arguments[0], 0.0, 0.0, 0.0,
+			0.0, arguments[0], 0.0, 0.0,
+			0.0, 0.0, arguments[0], 0.0,
+			0.0, 0.0, 0.0, arguments[0]
+			]);
+	} else {
+		throw "Invalid arguments to Mat4 constructor";
+	}
+
+	mat4.times = function(b) {
+		if (b.length == 16) {
+			var ret = new Mat4(0.0);
+			for (var c = 0; c < 4; ++c) {
+				for (var r = 0; r < 4; ++r) {
+					for (var i = 0; i < 4; ++i) {
+						ret[c * 4 + r] += this[i * 4 + r] * b[c * 4 + i];
+					}
+				}
+			}
+			return ret;
+		} else if (b instanceof engine.Vec4) {
+			return new engine.Vec4(
+				this[0] * b.x + this[4] * b.y + this[8] * b.z + this[12] * b.w,
+				this[1] * b.x + this[5] * b.y + this[9] * b.z + this[13] * b.w,
+				this[2] * b.x + this[6] * b.y + this[10] * b.z + this[14] * b.w,
+				this[3] * b.x + this[7] * b.y + this[11] * b.z + this[15] * b.w
+			);
+		} else {
+			console.log(b)
+			throw "Can't multiply Mat4 by that.";
+		}
+	};
+
+	return mat4;
+};
+
+exports = Mat4;
+
+return exports;
+})({});
+engine.Vec4 = (function(exports) {
+var Vec4 = function(x,y,z,w) {
+	this.x = x;
+	this.y = y;
+	this.z = z;
+	this.w = w;
+	return this;
+};
+
+Vec4.prototype.plus = function(b) {
+	return new Vec4(this.x + b.x, this.y + b.y, this.z + b.z, this.z + b.z);
+};
+
+Vec4.prototype.minus = function(b) {
+	return new Vec4(this.x - b.x, this.y - b.y, this.z - b.z, this.w - b.w);
+};
+
+Vec4.prototype.times = function(s) {
+	return new Vec4(this.x * s, this.y * s, this.z * s, this.w * s);
+};
+
+Vec4.prototype.dot = function(b) {
+	return this.x * b.x + this.y * b.y + this.z * b.z + this.w * b.w;
+};
+
+Vec4.prototype.normalized = function() {
+	var invMag = Math.sqrt(this.dot(this));
+	if (invMag == 0.0) {
+		return new Vec4(1, 0, 0);
+	} else {
+		invMag = 1.0 / invMag;
+		return this.times(invMag);
+	}
+}
+
+
+exports = Vec4
+
+return exports;
+})({});
+engine.emitMesh = (function(exports) {
+function emitMesh() {
+	var s = gl.getParameter(gl.CURRENT_PROGRAM);
+
+	var vertsBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, vertsBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, this.verts3, gl.STREAM_DRAW);
+	gl.vertexAttribPointer(s.aVertex.location, 3, gl.FLOAT, false, 0, 0);
+	gl.enableVertexAttribArray(s.aVertex.location);
+
+	var colorsBuffer = null;
+	if (s.aColor) {
+		colorsBuffer = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, colorsBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, this.colors4, gl.STREAM_DRAW);
+		gl.vertexAttribPointer(s.aColor.location, 4, gl.UNSIGNED_BYTE, true, 0, 0);
+		gl.enableVertexAttribArray(s.aColor.location);
+	}
+
+	gl.drawArrays(gl.TRIANGLES, 0, this.verts3.length / 3);
+
+	if (s.aColor) {
+		gl.disableVertexAttribArray(s.aColor.location);
+		gl.deleteBuffer(colorsBuffer);
+		delete colorsBuffer;
+	}
+
+	gl.disableVertexAttribArray(s.aVertex.location);
+	gl.deleteBuffer(vertsBuffer);
+	delete vertsBuffer;
+};
+
+exports = emitMesh;
+
+return exports;
+})({});
+window.game = {};
 game.scene1 = (function(exports) {
 exports = function() {
 	this.fade = 0.0;
@@ -1119,6 +1056,458 @@ exports.prototype.mouse = function(x, y, isDown) {
 
 return exports;
 })({});
+game.ArrangeScene = (function(exports) {
+var Vec3 = engine.Vec3;
+var Mat4 = engine.Mat4;
+
+var Tile = function(params) {
+	this.verts2 = [-0.4,-0.4, -0.4,0.4, 0.4,0.4, 0.4,-0.4];
+	this.color = {r:1.0, g:0.0, b:1.0};
+	for (n in params) {
+		this[n] = params[n];
+	}
+	return this;
+};
+
+//Eventually tiles will have their own meshes.
+Tile.prototype.emit = function() {
+	if (typeof(this.mesh) == 'string') {
+		this.mesh = meshes.tiles[this.mesh];
+	}
+	this.mesh.emit();
+	/*
+	var vertsBuffer = gl.createBuffer();
+	gl.bindBuffer(gl.ARRAY_BUFFER, vertsBuffer);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.verts2), gl.STREAM_DRAW);
+
+	var s = gl.getParameter(gl.CURRENT_PROGRAM);
+
+	gl.enableVertexAttribArray(s.aVertex.location);
+	gl.vertexAttribPointer(s.aVertex.location, 2, gl.FLOAT, false, 0, 0);
+
+	if (s.aColor) {
+		gl.vertexAttrib4f(s.aColor.location, this.color.r, this.color.g, this.color.b, 1.0);
+	}
+
+	gl.drawArrays(gl.LINE_LOOP, 0, this.verts2.length / 2);
+
+	gl.disableVertexAttribArray(s.aVertex.location);
+	gl.deleteBuffer(vertsBuffer);
+	delete vertsBuffer;
+	*/
+};
+
+//Path tiles have an entrance to the west in their default orientation.
+var PathStart = new Tile({
+	mesh:'path_start'
+});
+var PathEnd = new Tile({
+	mesh:'path_end'
+});
+var PathStraight = new Tile({
+	mesh:'path_straight'
+});
+var PathLeft = new Tile({ });
+var PathRight = new Tile({ });
+var Pillar = new Tile({
+	mesh:'pillar'
+});
+
+
+//Rotations are 0,1,2,3 corresponding to rotating CC in 90-degree increments.
+//rot() performs rotations around the center of tile (0,0)
+function rot(r, pt) {
+	if (r < 0) r = (r % 4) + 4;
+	else if (r >= 4) r = r % 4;
+
+	if (r == 0) {
+		return {x:pt.x, y:pt.y};
+	} else if (r == 1) {
+		return {x:-pt.y, y:pt.x};
+	} else if (r == 2) {
+		return {x:-pt.x, y:-pt.y};
+	} else if (r == 3) {
+		return {x:pt.y, y:-pt.x};
+	}
+}
+
+var ArrangeScene = function(level) {
+	//TODO: actually load level from level.
+
+	//The first tile in every fragment is the 'key' to the fragment,
+	//and generally the point of interaction for that fragment.
+	//It should be located at (0,0), since fragments rotate around (0,0)
+	this.fragments = [
+		{
+			at:{x:0, y:0}, r:0,
+			tiles:[
+				{at:{x:0,y:0},r:0, tile:PathStart},
+				{at:{x:1,y:1},r:0, tile:Pillar}
+			]
+		},
+		{
+			at:{x:1, y:2}, r:0,
+			tiles:[
+				{at:{x:0,y:0},r:1, tile:Pillar},
+				{at:{x:1,y:0},r:1, tile:PathEnd},
+			]
+		}
+	];
+
+	this.currentFragment = null;
+
+	this.buildCombined();
+
+	this.camera = {
+		eye:new Vec3(5.0, 5.0, 5.0),
+		target:new Vec3(0.0, 0.0, 0.0),
+		up:new Vec3(0.0, 0.0, 1.0)
+	};
+
+	this.mouseDown = false;
+	this.hoverInfo = null; //info about tile mouse is hovering over
+	this.dragInfo = null; //info about tile mouse is dragging
+
+	this.spin = 0.0;
+
+	return this;
+};
+
+var selectFb = null;
+
+ArrangeScene.prototype.enter = function() {
+	this.resize();
+};
+
+ArrangeScene.prototype.leave = function() {
+};
+
+ArrangeScene.prototype.resize = function() {
+	console.log(arguments);
+
+	if (!selectFb) {
+		selectFb = gl.createFramebuffer();
+		selectFb.colorTex = gl.createTexture();
+		selectFb.depthRb = gl.createRenderbuffer();
+	}
+	selectFb.width = engine.Size.x;
+	selectFb.height = engine.Size.y;
+
+	gl.bindRenderbuffer(gl.RENDERBUFFER, selectFb.depthRb);
+	gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, selectFb.width, selectFb.height);
+	gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+
+	gl.bindTexture(gl.TEXTURE_2D, selectFb.colorTex);
+	gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, selectFb.width, selectFb.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+	gl.bindTexture(gl.TEXTURE_2D, null);
+
+	gl.bindFramebuffer(gl.FRAMEBUFFER, selectFb);
+	gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, selectFb.colorTex, 0);
+	gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, selectFb.depthRb);
+	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+};
+
+ArrangeScene.prototype.update = function(elapsed) {
+	this.spin += elapsed;
+	if (this.spin > 2.0 * Math.PI) this.spin = this.spin % (2.0 * Math.PI);
+
+	var ang = (Math.sin(this.spin) * 0.01- 0.75) * Math.PI;
+	this.camera.eye.x = Math.cos(ang) * 5.0;
+	this.camera.eye.y = Math.sin(ang) * 5.0;
+}
+
+ArrangeScene.prototype.buildCombined = function() {
+	//Splat all fragments into this.combined (a rectangular grid)
+
+	//First figure out the size of grid we need:
+	var min = {x:Infinity, y:Infinity};
+	var max = {x:-Infinity, y:-Infinity};
+	this.fragments.forEach(function(f){
+		f.tiles.forEach(function(t){
+			var at = rot(f.r, t.at);
+			at.x += f.at.x;
+			at.y += f.at.y;
+			min.x = Math.min(min.x, at.x);
+			min.y = Math.min(min.y, at.y);
+			max.x = Math.max(max.x, at.x);
+			max.y = Math.max(max.y, at.y);
+		});
+	});
+
+	//Allocate the grid:
+	if (min.x > max.x || min.y > max.y) {
+		this.combined = [];
+		this.combined.min = {x:0, y:0};
+		this.combined.size = {x:0, y:0};
+		return;
+	}
+	this.combined = Array((max.x - min.x + 1) * (max.y - min.y + 1));
+	this.combined.min = min;
+	this.combined.size = {x:max.x - min.x + 1, y:max.y - min.y + 1};
+
+	this.combined.index = function(at) {
+		return (at.y - this.min.y) * this.size.x + (at.x - this.min.x);
+	};
+
+	//Each cell of combined stores a list of tiles:
+	for (var i = 0; i < this.combined.length; ++i) {
+		this.combined[i] = [];
+	}
+
+	//Fill in the lists:
+	var combined = this.combined;
+	this.fragments.forEach(function(f){
+		f.tiles.forEach(function(t){
+			var at = rot(f.r, t.at);
+			at.x += f.at.x;
+			var r = (t.r + f.r) % 4;
+
+			var idx = combined.index(at);
+			combined[idx].push({r:r, tile:t.tile, fragment:f});
+		});
+	});
+
+	//TODO: check consistency
+};
+
+//These should probably get moved:
+function lookAt(eye, target, up) {
+	var z = eye.minus(target).normalized();
+	var y = up.minus(z.times(z.dot(up))).normalized();
+	var x = y.cross(z);
+	//matrix (column-major order):
+	return new Mat4(
+		x.x, y.x, z.x, 0.0,
+		x.y, y.y, z.y, 0.0,
+		x.z, y.z, z.z, 0.0,
+		-eye.dot(x), -eye.dot(y), -eye.dot(z), 1.0
+	);
+}
+
+function perspective(fovy, aspect, near, far) {
+	var f =  Math.tan(fovy * 0.5 / 180.0 * Math.PI);
+	return new Mat4(
+		f / aspect, 0.0, 0.0, 0.0,
+		0.0, f, 0.0, 0.0,
+		0.0, 0.0, (far + near) / (near - far), -1.0,
+		0.0, 0.0, 2 * (far * near) / (near - far), 0.0
+	);
+}
+
+ArrangeScene.prototype.draw = function() {
+	this.drawHelper(false);
+	this.drawHelper(true);
+};
+
+ArrangeScene.prototype.drawHelper = function(drawSelect) {
+
+	if (drawSelect) {
+		gl.bindFramebuffer(gl.FRAMEBUFFER, selectFb);
+	}
+
+	//drawSelect = true; //DEBUG
+
+	if (drawSelect) {
+		gl.clearColor(1.0, 1.0, 1.0, 1.0);
+	} else {
+		gl.clearColor(0.2, 0.2, 0.2, 1.0);
+	}
+	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+	gl.enable(gl.DEPTH_TEST);
+
+
+	var s = drawSelect?shaders.select:shaders.solid;
+	gl.useProgram(s);
+
+	var MV = lookAt(this.camera.eye, this.camera.target, this.camera.up);
+	var P = new Mat4(
+		0.1, 0.0, 0.0, 0.0,
+		0.0, 0.1 * (engine.Size.x / engine.Size.y), 0.0, 0.0,
+		0.0, 0.0,-0.1, 0.0,
+		0.0, 0.0, 0.0, 1.0
+	);
+	//P = perspective(45.0, engine.Size.x / engine.Size.y, 0.1, 100.0);
+
+	var MVP = P.times(MV);
+
+	this.MVP = MVP;
+
+	for (var x = 0; x < this.combined.size.x; ++x) {
+		for (var y = 0; y < this.combined.size.y; ++y) {
+			var tiles = this.combined[y * this.combined.size.x + x];
+			var at = {x:this.combined.min.x + x, y:this.combined.min.y + y};
+
+			if (drawSelect) {
+				gl.vertexAttrib4f(s.aTag.location, x / 255.0, y / 255.0, 255, 255);
+				//TODO: draw floor, somehow.
+			}
+
+			tiles.forEach(function(t, ti){
+				//set up transform based on at,r:
+				var xd = rot(t.r,{x:1, y:0});
+				var yd = rot(t.r,{x:0, y:1});
+				var xf = new Mat4(
+					0.5 * xd.x, 0.5 * xd.y, 0.0, 0.0,
+					0.5 * yd.x, 0.5 * yd.y, 0.0, 0.0,
+					0.0, 0.0, 0.5, 0.0,
+					at.x, at.y, 0.0, 1.0
+				);
+				gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
+				if (drawSelect) {
+					gl.vertexAttrib4f(s.aTag.location, x / 255.0, y / 255.0, ti, 255);
+				}
+				t.tile.emit();
+			});
+
+		}
+	}
+
+	if (!drawSelect && this.mouse3d) {
+		var ofs = new Mat4(
+			0.1, 0.0, 0.0, 0.0,
+			0.0, 0.1, 0.0, 0.0,
+			0.0, 0.0, 0.1, 0.0,
+			this.mouse3d.x, this.mouse3d.y, this.mouse3d.z, 1.0
+		);
+		gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(ofs));
+		meshes.shapes.sphere.emit();
+	}
+
+	if (drawSelect) {
+		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+	}
+};
+
+ArrangeScene.prototype.mouseToPlane = function(x,y,z) {
+	//Convert x,y into screen units:
+	x = 2.0 * ((x + 0.5) / engine.Size.x - 0.5);
+	y = 2.0 * ((y + 0.5) / engine.Size.y - 0.5);
+
+	//project mouse position into plane at height 'z':
+	// Have px * MVP[ ... ] + py * MVP[ ... ] = pt
+	// Want:
+	// pt.x = x * pt.w
+	// pt.y = y * pt.w
+
+	//pt.x == px * MVP[0,0] + py * MVP[0,1] + z * MVP[0,2] + MVP[0,3]
+	//pt.y == px * MVP[1,0] + py * MVP[1,1] + z * MVP[1,2] + MVP[1,3]
+	//pt.w == px * MVP[3,0] + py * MVP[3,1] + z * MVP[3,2] + MVP[3,3]
+
+	//Set up as matrix:
+	// [m00 m01 m02] [px] = [0]
+	// [m10 m11 m12] [py]   [0]
+	//               [ 1]
+
+	var MVP = this.MVP;
+
+	//start with matrix that computes pt.x, pt.y:
+	var ptx = [ MVP[0], MVP[4], z * MVP[8] + 1.0 * MVP[12] ];
+	var pty = [ MVP[1], MVP[5], z * MVP[9] + 1.0 * MVP[13] ];
+	var ptw = [ MVP[3], MVP[7], z * MVP[11] + 1.0 * MVP[15] ];
+	var mat = [
+		[ ptx[0] - x * ptw[0], ptx[1] - x * ptw[1], ptx[2] - x * ptw[2] ],
+		[ pty[0] - y * ptw[0], pty[1] - y * ptw[1], pty[2] - y * ptw[2] ]
+	];
+
+	var det = mat[0][0] * mat[1][1] - mat[0][1] * mat[1][0];
+	if (det == 0.0) {
+		return new Vec3(0.0, 0.0, z);
+	} else {
+		var invDet = 1.0 / det;
+		var invMat = [
+			[invDet * mat[1][1],-invDet * mat[0][1]],
+			[-invDet * mat[1][0], invDet * mat[0][0]]
+		];
+		var px = invMat[0][0] * mat[0][2] + invMat[0][1] * mat[1][2];
+		var py = invMat[1][0] * mat[0][2] + invMat[1][1] * mat[1][2];
+
+		var pt = new Vec3(-px, -py, z);
+
+		//CHECK:
+		var mul = [
+			mat[0][0] * pt.x + mat[0][1] * pt.y + mat[0][2],
+			mat[1][0] * pt.x + mat[1][1] * pt.y + mat[1][2]
+		];
+		//console.log("Should be 0,0-ish: ",mul);
+
+		return pt;
+	}
+};
+
+ArrangeScene.prototype.setHoverInfo = function(x, y) {
+	this.hoverInfo = null;
+
+	this.mouse3d = null; //DEBUG
+
+	if (x < 0 || x >= engine.Size.x || y < 0 || y >= engine.Size.y) {
+		return;
+	}
+
+	var tag = new Uint8Array(4);
+	gl.bindFramebuffer(gl.FRAMEBUFFER, selectFb)
+	gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, tag);
+	gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+
+	if (tag[0] != 255 && tag[1] != 255) {
+		var tiles = this.combined[tag[1] * this.combined.size.y + tag[0]];
+		var idx = tag[2];
+		if (idx == 255) {
+			//hmm, hitting floor, need to figure that out.
+			idx = 0;
+		} else if (idx > tiles.length) {
+			console.log("Got index " + idx + " which exceeds " + tiles.length);
+			idx = 0;
+		} else {
+			var z = 0.0;
+			//TODO: read z from tag
+			var mouse3d = this.mouseToPlane(x,y,z);
+
+			var fragment = tiles[idx].fragment;
+			//var tile = tiles[idx].tile;
+			this.hoverInfo = {
+				at:{x:tag[0], y:tag[1]},
+				fragment:fragment,
+				//tile:tile,
+				toMouse:mouse3d.minus(new Vec3(fragment.at.x, fragment.at.y, 0.0))
+			};
+
+			this.mouse3d = mouse3d; //DEBUG
+		}
+	}
+
+};
+
+ArrangeScene.prototype.mouse = function(x, y, isDown) {
+	if (this.dragInfo) {
+		//update thing we are dragging.
+	}
+
+	if (!isDown && this.mouseDown) {
+		//release drag:
+		this.mouseDown = false;
+		this.dragInfo = null;
+	}
+
+	//if we aren't dragging, adjust hover info:
+	if (!this.dragInfo) {
+		this.setHoverInfo(x,y);
+	}
+
+	//if mouse was just pressed down, start dragging:
+	if (isDown && !this.mouseDown) {
+		this.mouseDown = true;
+		if (this.hoverInfo) {
+			this.dragInfo = this.hoverInfo;
+		}
+	}
+
+};
+
+
+exports = ArrangeScene;
+
+return exports;
+})({});
 window.lib = {};
 lib.timbre = (function(exports) {
 !function(a){"use strict";var b=function(){return r.apply(null,arguments)},c=Array.prototype.slice,d=0,e=1,f=2,g=3,h=[8e3,11025,12e3,16e3,22050,24e3,32e3,44100,48e3],i=[32,64,128,256],j="14.08.07",k=null,l={},m={},n="undefined"!=typeof window?"browser":"undefined"!=typeof module&&module.exports?"node":"unknown",o="browser"===n&&/(iPhone|iPad|iPod|Android)/i.test(navigator.userAgent),p=!1,q=120,r=function(){var b,d,e=c.call(arguments),f=e[0];switch(typeof f){case"string":l[f]?b=new l[f](e.slice(1)):m[f]?b=m[f](e.slice(1)):(d=/^(.+?)(?:\.(ar|kr))?$/.exec(f),d&&(f=d[1],l[f]?b=new l[f](e.slice(1)):m[f]&&(b=m[f](e.slice(1))),b&&d[2]&&b[d[2]]()));break;case"number":b=new C(e);break;case"boolean":b=new D(e);break;case"function":b=new E(e);break;case"object":if(null!==f){if(f instanceof z)return f;if(f.context instanceof z)return f.context;v(f)?b=new G(e):u(f)&&(b=new F(e))}}b===a&&(b=new B(e.slice(1)),console.warn('T("'+f+'") is not defined.'));var g=b._;return g.originkey=f,g.meta=s(b),g.emit("init"),b},s=function(a){for(var b,c,d=a._.meta,e=a;null!==e&&e.constructor!==Object;){b=Object.getOwnPropertyNames(e);for(var f=0,g=b.length;g>f;++f)d[b[f]]||(/^(constructor$|process$|_)/.test(b[f])?d[b[f]]="ignore":(c=Object.getOwnPropertyDescriptor(e,b[f]),"function"==typeof c.value?d[b[f]]="function":(c.get||c.set)&&(d[b[f]]="property")));e=Object.getPrototypeOf(e)}return d};Object.defineProperties(b,{version:{value:j},envtype:{value:n},envmobile:{value:o},env:{get:function(){return k.impl.env}},samplerate:{get:function(){return k.samplerate}},channels:{get:function(){return k.channels}},cellsize:{get:function(){return k.cellsize}},currentTime:{get:function(){return k.currentTime}},isPlaying:{get:function(){return k.status===e}},isRecording:{get:function(){return k.status===g}},amp:{set:function(a){"number"==typeof a&&(k.amp=a)},get:function(){return k.amp}},bpm:{set:function(a){"number"==typeof a&&a>=5&&300>=a&&(q=a)},get:function(){return q}}}),b.bind=function(a,c){return k.bind(a,c),b},b.setup=function(a){return k.setup(a),b},b.play=function(){return k.play(),b},b.pause=function(){return k.pause(),b},b.reset=function(){return k.reset(),k.events.emit("reset"),b},b.on=b.addListener=function(a,c){return k.on(a,c),b},b.once=function(a,c){return k.once(a,c),b},b.off=b.removeListener=function(a,c){return k.off(a,c),b},b.removeAllListeners=function(a){return k.removeAllListeners(a),b},b.listeners=function(a){return k.listeners(a)},b.rec=function(){return k.rec.apply(k,arguments)},b.timevalue=function(){var a=function(a){var b,c=q;return(b=/^bpm(\d+(?:\.\d+)?)/i.exec(a))&&(c=Math.max(5,Math.min(300,+(b[1]||0)))),c};return function(c){var d,e,f;if(d=/^(\d+(?:\.\d+)?)Hz$/i.exec(c))return 0===+d[1]?0:1e3/+d[1];if(d=/L(\d+)?(\.*)$/i.exec(c))return e=60/a(c)*(4/(d[1]||4))*1e3,e*=[1,1.5,1.75,1.875][(d[2]||"").length]||1;if(d=/^(\d+(?:\.\d+)?|\.(?:\d+))(min|sec|m)s?$/i.exec(c))switch(d[2]){case"min":return 60*+(d[1]||0)*1e3;case"sec":return 1e3*+(d[1]||0);case"m":return+(d[1]||0)}return(d=/^(?:([0-5]?[0-9]):)?(?:([0-5]?[0-9]):)(?:([0-5]?[0-9]))(?:\.([0-9]{1,3}))?$/.exec(c))?(f=3600*(d[1]||0)+60*(d[2]||0)+(d[3]||0),f=1e3*f+(0|((d[4]||"")+"00").substr(0,3))):(d=/(\d+)\.(\d+)\.(\d+)$/i.exec(c))?(f=480*(4*d[1]+ +d[2])+ +d[3],60/a(c)*(f/480)*1e3):(d=/(\d+)ticks$/i.exec(c))?60/a(c)*(d[1]/480)*1e3:(d=/^(\d+)samples(?:\/(\d+)Hz)?$/i.exec(c))?1e3*d[1]/(d[2]||b.samplerate):0}}();var t=b.fn={SignalArray:Float32Array,currentTimeIncr:0,emptycell:null,FINISHED_STATE:d,PLAYING_STATE:e,UNSCHEDULED_STATE:f,SCHEDULED_STATE:g},u=t.isArray=Array.isArray,v=t.isDictionary=function(a){return"object"==typeof a&&a.constructor===Object};t.nop=function(){return this},t.isSignalArray=function(a){return a instanceof t.SignalArray?!0:Array.isArray(a)&&a.__klass&&2===a.__klass.type?!0:!1},t.extend=function(a,b){function c(){this.constructor=a}b=b||z;for(var d in b)b.hasOwnProperty(d)&&(a[d]=b[d]);return c.prototype=b.prototype,a.prototype=new c,a.__super__=b.prototype,a},t.constructorof=function(a,b){for(var c=a&&a.prototype;c;){if(c===b.prototype)return!0;c=Object.getPrototypeOf(c)}return!1},t.register=function(a,b){t.constructorof(b,z)?l[a]=b:m[a]=b},t.alias=function(a,b){l[b]?l[a]=l[b]:m[b]&&(m[a]=m[b])},t.getClass=function(a){return l[a]},t.pointer=function(a,b,c){return b=a.byteOffset+b*a.constructor.BYTES_PER_ELEMENT,"number"==typeof c?new a.constructor(a.buffer,b,c):new a.constructor(a.buffer,b)},t.nextTick=function(a){return k.nextTick(a),b},t.fixAR=function(a){a._.ar=!0,a._.aronly=!0},t.fixKR=function(a){a._.ar=!1,a._.kronly=!0},t.changeWithValue=function(){var a=this._,b=a.value*a.mul+a.add;isNaN(b)&&(b=0);for(var c=this.cells[0],d=0,e=c.length;e>d;++d)c[d]=b},t.changeWithValue.unremovable=!0,t.clone=function(a){var b=new a.constructor([]);return b._.ar=a._.ar,b._.mul=a._.mul,b._.add=a._.add,b._.bypassed=a._.bypassed,b},t.timer=function(){var a=function(a){return function(){-1===k.timers.indexOf(a)&&(k.timers.push(a),k.events.emit("addObject"),a._.emit("start"),t.buddies_start(a))}},b=function(a){return function(){var b=k.timers.indexOf(a);-1!==b&&(k.timers.splice(b,1),a._.emit("stop"),k.events.emit("removeObject"),t.buddies_stop(a))}};return function(c){var d=a(c),e=b(c);return c.nodeType=z.TIMER,c.start=function(){return k.nextTick(d),c},c.stop=function(){return k.nextTick(e),c},c}}(),t.listener=function(){var a=function(a){return function(){-1===k.listeners.indexOf(a)&&(k.listeners.push(a),k.events.emit("addObject"),a._.emit("listen"),t.buddies_start(a))}},b=function(a){return function(){var b=k.listeners.indexOf(a);-1!==b&&(k.listeners.splice(b,1),a._.emit("unlisten"),k.events.emit("removeObject"),t.buddies_stop(a))}};return function(c){var d=a(c),e=b(c);return c.nodeType=z.LISTENER,c.listen=function(){return arguments.length&&c.append.apply(c,arguments),c.nodes.length&&k.nextTick(d),c},c.unlisten=function(){return arguments.length&&c.remove.apply(c,arguments),c.nodes.length||k.nextTick(e),c},c}}(),t.make_onended=function(a,b){return function(){if(a.playbackState=d,"number"==typeof b)for(var c=a.cells[0],e=a.cells[1],f=a.cells[2],g=0,h=e.length;h>g;++g)c[0]=e[g]=f[g]=b;a._.emit("ended")}},t.inputSignalAR=function(a){var b,c,d,f,g,h,i=a.cells[0],j=a.cells[1],k=a.cells[2],l=a.nodes,m=l.length,n=i.length,o=a.tickID;if(2===a.numChannels){if(d=!0,0!==m){for(b=0;m>b;++b)if(l[b].playbackState===e){l[b].process(o),j.set(l[b].cells[1]),k.set(l[b].cells[2]),d=!1,++b;break}for(;m>b;++b)if(l[b].playbackState===e)for(l[b].process(o),g=l[b].cells[1],h=l[b].cells[2],c=n;c;)c-=8,j[c]+=g[c],k[c]+=h[c],j[c+1]+=g[c+1],k[c+1]+=h[c+1],j[c+2]+=g[c+2],k[c+2]+=h[c+2],j[c+3]+=g[c+3],k[c+3]+=h[c+3],j[c+4]+=g[c+4],k[c+4]+=h[c+4],j[c+5]+=g[c+5],k[c+5]+=h[c+5],j[c+6]+=g[c+6],k[c+6]+=h[c+6],j[c+7]+=g[c+7],k[c+7]+=h[c+7]}d&&(j.set(t.emptycell),k.set(t.emptycell))}else{if(d=!0,0!==m){for(b=0;m>b;++b)if(l[b].playbackState===e){l[b].process(o),i.set(l[b].cells[0]),d=!1,++b;break}for(;m>b;++b)if(l[b].playbackState===e)for(f=l[b].process(o).cells[0],c=n;c;)c-=8,i[c]+=f[c],i[c+1]+=f[c+1],i[c+2]+=f[c+2],i[c+3]+=f[c+3],i[c+4]+=f[c+4],i[c+5]+=f[c+5],i[c+6]+=f[c+6],i[c+7]+=f[c+7]}d&&i.set(t.emptycell)}},t.inputSignalKR=function(a){var b,c=a.nodes,d=c.length,f=a.tickID,g=0;for(b=0;d>b;++b)c[b].playbackState===e&&(g+=c[b].process(f).cells[0][0]);return g},t.outputSignalAR=function(a){var b,c=a.cells[0],d=a.cells[1],e=a.cells[2],f=a._.mul,g=a._.add;if(2===a.numChannels)for(b=c.length;b;)b-=8,d[b]=d[b]*f+g,e[b]=e[b]*f+g,d[b+1]=d[b+1]*f+g,e[b+1]=e[b+1]*f+g,d[b+2]=d[b+2]*f+g,e[b+2]=e[b+2]*f+g,d[b+3]=d[b+3]*f+g,e[b+3]=e[b+3]*f+g,d[b+4]=d[b+4]*f+g,e[b+4]=e[b+4]*f+g,d[b+5]=d[b+5]*f+g,e[b+5]=e[b+5]*f+g,d[b+6]=d[b+6]*f+g,e[b+6]=e[b+6]*f+g,d[b+7]=d[b+7]*f+g,e[b+7]=e[b+7]*f+g,c[b]=.5*(d[b]+e[b]),c[b+1]=.5*(d[b+1]+e[b+1]),c[b+2]=.5*(d[b+2]+e[b+2]),c[b+3]=.5*(d[b+3]+e[b+3]),c[b+4]=.5*(d[b+4]+e[b+4]),c[b+5]=.5*(d[b+5]+e[b+5]),c[b+6]=.5*(d[b+6]+e[b+6]),c[b+7]=.5*(d[b+7]+e[b+7]);else if(1!==f||0!==g)for(b=c.length;b;)b-=8,c[b]=c[b]*f+g,c[b+1]=c[b+1]*f+g,c[b+2]=c[b+2]*f+g,c[b+3]=c[b+3]*f+g,c[b+4]=c[b+4]*f+g,c[b+5]=c[b+5]*f+g,c[b+6]=c[b+6]*f+g,c[b+7]=c[b+7]*f+g},t.outputSignalKR=function(a){var b,c=a.cells[0],d=a.cells[1],e=a.cells[2],f=a._.mul,g=a._.add,h=c[0]*f+g;if(2===a.numChannels)for(b=c.length;b;)b-=8,c[b]=c[b+1]=c[b+2]=c[b+3]=c[b+4]=c[b+5]=c[b+6]=c[b+7]=d[b]=d[b+1]=d[b+2]=d[b+3]=d[b+4]=d[b+5]=d[b+6]=d[b+7]=e[b]=e[b+1]=e[b+2]=e[b+3]=e[b+4]=e[b+5]=e[b+6]=e[b+7]=h;else for(b=c.length;b;)b-=8,c[b]=c[b+1]=c[b+2]=c[b+3]=c[b+4]=c[b+5]=c[b+6]=c[b+7]=h},t.buddies_start=function(a){var b,c,d,e=a._.buddies;for(c=0,d=e.length;d>c;++c)switch(b=e[c],b.nodeType){case z.DSP:b.play();break;case z.TIMER:b.start();break;case z.LISTENER:b.listen()}},t.buddies_stop=function(a){var b,c,d,e=a._.buddies;for(c=0,d=e.length;d>c;++c)switch(b=e[c],b.nodeType){case z.DSP:b.pause();break;case z.TIMER:b.stop();break;case z.LISTENER:b.unlisten()}},t.fix_iOS6_1_problem=function(a){k.fix_iOS6_1_problem(a)};var w=b.modules={},x=w.EventEmitter=function(){function a(a){this.context=a,this.events={}}var b=a.prototype;return b.emit=function(a){var b=this.events[a];if(!b)return!1;var d;if("function"==typeof b){switch(arguments.length){case 1:b.call(this.context);break;case 2:b.call(this.context,arguments[1]);break;case 3:b.call(this.context,arguments[1],arguments[2]);break;default:d=c.call(arguments,1),b.apply(this.context,d)}return!0}if(u(b)){d=c.call(arguments,1);for(var e=b.slice(),f=0,g=e.length;g>f;++f)e[f]instanceof z?e[f].bang.apply(e[f],d):e[f].apply(this.context,d);return!0}return b instanceof z?(d=c.call(arguments,1),void b.bang.apply(b,d)):!1},b.on=function(a,b){if("function"!=typeof b&&!(b instanceof z))throw new Error("addListener takes instances of Function or timbre.Object");var c=this.events;return c[a]?u(c[a])?c[a].push(b):c[a]=[c[a],b]:c[a]=b,this},b.once=function(a,b){var c,d=this;if("function"==typeof b)c=function(){d.off(a,c),b.apply(d.context,arguments)};else{if(!(b instanceof z))throw new Error("once takes instances of Function or timbre.Object");c=function(){d.off(a,c),b.bang.apply(b,arguments)}}return c.listener=b,d.on(a,c),this},b.off=function(a,b){if("function"!=typeof b&&!(b instanceof z))throw new Error("removeListener takes instances of Function or timbre.Object");var c=this.events;if(!c[a])return this;var d=c[a];if(u(d)){for(var e=-1,f=0,g=d.length;g>f;++f)if(d[f]===b||d[f].listener&&d[f].listener===b){e=f;break}if(0>e)return this;d.splice(e,1),0===d.length&&(c[a]=null)}else(d===b||d.listener&&d.listener===b)&&(c[a]=null);return this},b.removeAllListeners=function(a){var b=this.events,c=!1,d=b[a];if(u(d))for(var e=d.length;e--;){var f=d[e];f.unremovable?c=!0:this.off(a,f)}else d&&(d.unremovable?c=!0:this.off(a,d));return c||(b[a]=null),this},b.listeners=function(a){var b,c=this.events;if(!c[a])return[];if(c=c[a],!u(c))return c.unremovable?[]:[c];c=c.slice(),b=[];for(var d=0,e=c.length;e>d;++d)c[d].unremovable||b.push(c[d]);return b},a}(),y=w.Deferred=function(){function a(a){this.context=a||this,this._state="pending",this._doneList=[],this._failList=[],this._promise=new b(this)}function b(a){this.context=a.context,this.then=a.then,this.done=function(){return a.done.apply(a,arguments),this},this.fail=function(){return a.fail.apply(a,arguments),this},this.pipe=function(){return a.pipe.apply(a,arguments)},this.always=function(){return a.always.apply(a,arguments),this},this.promise=function(){return this},this.isResolved=function(){return a.isResolved()},this.isRejected=function(){return a.isRejected()}}var d=a.prototype,e=function(a,b,c,d){if("pending"===this._state){this._state=a;for(var e=0,f=b.length;f>e;++e)b[e].apply(c,d);this._doneList=this._failList=null}},f=function(a){return a&&"function"==typeof a.promise};return d.resolve=function(){var a=c.call(arguments,0);return e.call(this,"resolved",this._doneList,this.context||this,a),this},d.resolveWith=function(a){var b=c.call(arguments,1);return e.call(this,"resolved",this._doneList,a,b),this},d.reject=function(){var a=c.call(arguments,0);return e.call(this,"rejected",this._failList,this.context||this,a),this},d.rejectWith=function(a){var b=c.call(arguments,1);return e.call(this,"rejected",this._failList,a,b),this},d.promise=function(){return this._promise},d.done=function(){for(var a=c.call(arguments),b="resolved"===this._state,d="pending"===this._state,e=this._doneList,f=0,g=a.length;g>f;++f)"function"==typeof a[f]&&(b?a[f]():d&&e.push(a[f]));return this},d.fail=function(){for(var a=c.call(arguments),b="rejected"===this._state,d="pending"===this._state,e=this._failList,f=0,g=a.length;g>f;++f)"function"==typeof a[f]&&(b?a[f]():d&&e.push(a[f]));return this},d.always=function(){return this.done.apply(this,arguments),this.fail.apply(this,arguments),this},d.then=function(a,b){return this.done(a).fail(b)},d.pipe=function(b,d){var e=this,g=new a(this.context);return this.done(function(){var a=b.apply(e.context,arguments);f(a)?a.then(function(){var b=c.call(arguments);g.resolveWith.apply(g,[a].concat(b))}):g.resolveWith(e,a)}),this.fail(function(){if("function"==typeof d){var a=d.apply(e.context,arguments);f(a)&&a.fail(function(){var b=c.call(arguments);g.rejectWith.apply(g,[a].concat(b))})}else g.reject.apply(g,arguments)}),g.promise()},d.isResolved=function(){return"resolved"===this._state},d.isRejected=function(){return"rejected"===this._state},d.state=function(){return this._state},a.when=function(b){var d=0,e=c.call(arguments),g=e.length,h=g;1!==g||f(b)||(h=0);var i=1===h?b:new a,j=function(a,b){return function(d){b[a]=arguments.length>1?c.call(arguments):d,--h||i.resolve.apply(i,b)}};if(g>1)for(var k=new Array(g),l=function(){i.reject()};g>d;++d)e[d]&&f(e[d])?e[d].promise().done(j(d,k)).fail(l):(k[d]=e[d],--h);return h||i.resolve.apply(i,e),i.promise()},a}(),z=b.Object=function(){function d(a,c){this._={};var f=this._.events=new x(this);if(this._.emit=function(){return f.emit.apply(f,arguments)},v(c[0])){var g=c.shift(),h=g["in"];this.once("init",function(){this.set(g),h&&(u(h)?this.append.apply(this,h):h instanceof d&&this.append(h))})}switch(this.tickID=-1,this.nodes=c.map(b),this.cells=[],this.numChannels=a,a){case 0:this.L=this.R=new A(null),this.cells[0]=this.cells[1]=this.cells[2]=this.L.cell;break;case 1:this.L=this.R=new A(this),this.cells[0]=this.cells[1]=this.cells[2]=this.L.cell;break;case 2:this.L=new A(this),this.R=new A(this),this.cells[0]=new t.SignalArray(k.cellsize),this.cells[1]=this.L.cell,this.cells[2]=this.R.cell}this.playbackState=e,this.nodeType=d.DSP,this._.ar=!0,this._.mul=1,this._.add=0,this._.dac=null,this._.bypassed=!1,this._.meta={},this._.samplerate=k.samplerate,this._.cellsize=k.cellsize,this._.buddies=[]}d.DSP=1,d.TIMER=2,d.LISTENER=3;var f=d.prototype;return Object.defineProperties(f,{isAr:{get:function(){return this._.ar}},isKr:{get:function(){return!this._.ar}},isBypassed:{get:function(){return this._.bypassed}},isEnded:{get:function(){return!(1&this.playbackState)}},mul:{set:function(a){"number"==typeof a&&(this._.mul=a,this._.emit("setMul",a))},get:function(){return this._.mul}},add:{set:function(a){"number"==typeof a&&(this._.add=a,this._.emit("setAdd",a))},get:function(){return this._.add}},buddies:{set:function(a){u(a)||(a=[a]),this._.buddies=a.filter(function(a){return a instanceof d})},get:function(){return this._.buddies}}}),f.toString=function(){return this.constructor.name},f.valueOf=function(){return k.tickID!==this.tickID&&this.process(k.tickID),this.cells[0][0]},f.append=function(){if(arguments.length>0){var a=c.call(arguments).map(b);this.nodes=this.nodes.concat(a),this._.emit("append",a)}return this},f.appendTo=function(a){return a.append(this),this},f.remove=function(){if(arguments.length>0){for(var a,b=this.nodes,c=[],d=0,e=arguments.length;e>d;++d)-1!==(a=b.indexOf(arguments[d]))&&(c.push(b[a]),b.splice(a,1));c.length>0&&this._.emit("remove",c)}return this},f.removeFrom=function(a){return a.remove(this),this},f.removeAll=function(){var a=this.nodes.slice();return this.nodes=[],a.length>0&&this._.emit("remove",a),this},f.removeAtIndex=function(a){var b=this.nodes[a];return b&&(this.nodes.splice(a,1),this._.emit("remove",[b])),this},f.postMessage=function(a){return this._.emit("message",a),this},f.to=function(a){if(a instanceof d)a.append(this);else{var b=c.call(arguments);v(b[1])?b.splice(2,0,this):b.splice(1,0,this),a=r.apply(null,b)}return a},f.splice=function(a,b,c){var e;return b?b instanceof d&&(e=b.nodes.indexOf(c),-1!==e&&b.nodes.splice(e,1),a instanceof d?(a.nodes.push(this),b.nodes.push(a)):b.nodes.push(this)):this._.dac&&(a instanceof d?c instanceof d?c._.dac&&(c._.dac._.node=a,a._.dac=c._.dac,c._.dac=null,a.nodes.push(this)):this._.dac&&(this._.dac._.node=a,a._.dac=this._.dac,this._.dac=null,a.nodes.push(this)):c instanceof d&&c._.dac&&(c._.dac._.node=this,this._.dac=c._.dac,c._.dac=null)),this},f.on=f.addListener=function(a,b){return this._.events.on(a,b),this},f.once=function(a,b){return this._.events.once(a,b),this},f.off=f.removeListener=function(a,b){return this._.events.off(a,b),this},f.removeAllListeners=function(a){return this._.events.removeAllListeners(a),this},f.listeners=function(a){return this._.events.listeners(a)},f.set=function(a,b){var c,d,e=this._.meta;switch(typeof a){case"string":switch(e[a]){case"property":this[a]=b;break;case"function":this[a](b);break;default:for(c=this;null!==c;)d=Object.getOwnPropertyDescriptor(c,a),d&&("function"==typeof d.value?(e[a]="function",this[a](b)):(d.get||d.set)&&(e[a]="property",this[a]=b)),c=Object.getPrototypeOf(c)}break;case"object":for(c in a)this.set(c,a[c])}return this},f.get=function(a){return"property"===this._.meta[a]?this[a]:void 0},f.bang=function(){return this._.emit.apply(this,["bang"].concat(c.call(arguments))),this},f.process=t.nop,f.bypass=function(){return this._.bypassed=0===arguments.length?!0:!!arguments[0],this},f.play=function(){var a=this._.dac;return null===a&&(a=this._.dac=new H(this)),a.play()&&this._.emit.apply(this,["play"].concat(c.call(arguments))),t.buddies_start(this),this},f.pause=function(){var a=this._.dac;return a&&a.playbackState===e&&(a.pause(),this._.dac=null,this._.emit("pause")),t.buddies_stop(this),this},f.start=f.stop=f.listen=f.unlisten=function(){return this},f.ar=function(){return(0===arguments.length?0:!arguments[0])?this.kr(!0):this._.kronly||(this._.ar=!0,this._.emit("ar",!0)),this},f.kr=function(){return(0===arguments.length?0:!arguments[0])?this.ar(!0):this._.aronly||(this._.ar=!1,this._.emit("ar",!1)),this},f.plot="browser"===n?function(b){var c=this._,d=b.target;if(!d)return this;var e,f=b.width||d.width||320,g=b.height||d.height||240,h=(b.x||0)+.5,i=b.y||0,j=d.getContext("2d");e=b.foreground!==a?b.foreground:c.plotForeground||"rgb(  0, 128, 255)";var k;k=b.background!==a?b.background:c.plotBackground||"rgb(255, 255, 255)";var l,m,n,o,p,q=b.lineWidth||c.plotLineWidth||1,r=!!c.plotCyclic,s=c.plotData||this.cells[0],t=b.range||c.plotRange||[-1.2,1.2],u=t[0],v=g/(t[1]-u),w=f/s.length,x=s.length;if(j.save(),j.rect(h,i,f,g),null!==k&&(j.fillStyle=k,j.fillRect(h,i,f,g)),c.plotBefore&&c.plotBefore.call(this,j,h,i,f,g),c.plotBarStyle)for(j.fillStyle=e,l=0,p=0;x>p;++p)n=(s[p]-u)*v,m=g-n,j.fillRect(l+h,m+i,w,n),l+=w;else{for(j.strokeStyle=e,j.lineWidth=q,j.beginPath(),l=0,o=g-(s[0]-u)*v,j.moveTo(l+h,o+i),p=1;x>p;++p)l+=w,m=g-(s[p]-u)*v,j.lineTo(l+h,m+i);r?j.lineTo(l+w+h,o+i):j.lineTo(l+w+h,m+i),j.stroke()}c.plotAfter&&c.plotAfter.call(this,j,h,i,f,g);var y=b.border||c.plotBorder;return y&&(j.strokeStyle="string"==typeof y?y:"#000",j.lineWidth=1,j.strokeRect(h,i,f,g)),j.restore(),this}:t.nop,d}(),A=b.ChannelObject=function(){function a(a){b.Object.call(this,-1,[]),t.fixAR(this),this._.parent=a,this.cell=new t.SignalArray(k.cellsize),this.L=this.R=this,this.cells[0]=this.cells[1]=this.cells[2]=this.cell,this.numChannels=1}return t.extend(a),a.prototype.process=function(a){return this.tickID!==a&&(this.tickID=a,this._.parent&&this._.parent.process(a)),this},a}(),B=function(){function a(a){z.call(this,2,a)}return t.extend(a),a.prototype.process=function(a){var b=this._;return this.tickID!==a&&(this.tickID=a,b.ar?(t.inputSignalAR(this),t.outputSignalAR(this)):(this.cells[0][0]=t.inputSignalKR(this),t.outputSignalKR(this))),this},t.register("+",a),a}(),C=function(){function a(a){if(z.call(this,1,[]),t.fixKR(this),this.value=a[0],v(a[1])){var b=a[1];this.once("init",function(){this.set(b)})}this.on("setAdd",t.changeWithValue),this.on("setMul",t.changeWithValue)}t.extend(a);var b=a.prototype;return Object.defineProperties(b,{value:{set:function(a){"number"==typeof a&&(this._.value=isNaN(a)?0:a,t.changeWithValue.call(this))},get:function(){return this._.value}}}),a}(),D=function(){function a(a){if(z.call(this,1,[]),t.fixKR(this),this.value=a[0],v(a[1])){var b=a[1];this.once("init",function(){this.set(b)})}this.on("setAdd",t.changeWithValue),this.on("setMul",t.changeWithValue)}t.extend(a);var b=a.prototype;return Object.defineProperties(b,{value:{set:function(a){this._.value=a?1:0,t.changeWithValue.call(this)},get:function(){return!!this._.value}}}),a}(),E=function(){function a(a){if(z.call(this,1,[]),t.fixKR(this),this.func=a[0],this._.value=0,v(a[1])){var b=a[1];this.once("init",function(){this.set(b)})}this.on("setAdd",t.changeWithValue),this.on("setMul",t.changeWithValue)}t.extend(a);var b=a.prototype;return Object.defineProperties(b,{func:{set:function(a){"function"==typeof a&&(this._.func=a)},get:function(){return this._.func}},args:{set:function(a){this._.args=u(a)?a:[a]},get:function(){return this._.args}}}),b.bang=function(){var a=this._,b=c.call(arguments).concat(a.args),d=a.func.apply(this,b);return"number"==typeof d&&(a.value=d,t.changeWithValue.call(this)),this._.emit("bang"),this},a}(),F=function(){function a(a){z.call(this,1,[]);var b,c;for(b=0,c=a[0].length;c>b;++b)this.append(a[0][b]);if(v(a[1])){var d=a[1];this.once("init",function(){this.set(d)})}}t.extend(a);var b=a.prototype;return Object.defineProperties(b,{}),b.bang=function(){var a,b,d=["bang"].concat(c.call(arguments)),e=this.nodes;for(a=0,b=e.length;b>a;++a)e[a].bang.apply(e[a],d);return this},b.postMessage=function(a){var b,c,d=this.nodes;for(b=0,c=d.length;c>b;++b)d[b].postMessage(a);return this},b.process=function(a){var b=this._;return this.tickID!==a&&(this.tickID=a,b.ar?(t.inputSignalAR(this),t.outputSignalAR(this)):(this.cells[0][0]=t.inputSignalKR(this),t.outputSignalKR(this))),this},a}(),G=function(){function a(a){if(z.call(this,1,[]),t.fixKR(this),v(a[1])){var b=a[1];this.once("init",function(){this.set(b)})}}t.extend(a);var b=a.prototype;return Object.defineProperties(b,{}),a}(),H=function(){function a(a){z.call(this,2,[]),this.playbackState=d;var e=this._;e.node=a,e.onplay=b(this),e.onpause=c(this)}t.extend(a);var b=function(a){return function(){-1===k.inlets.indexOf(a)&&(k.inlets.push(a),k.events.emit("addObject"),a.playbackState=e,a._.emit("play"))}},c=function(a){return function(){var b=k.inlets.indexOf(a);-1!==b&&(k.inlets.splice(b,1),a.playbackState=d,a._.emit("pause"),k.events.emit("removeObject"))}},f=a.prototype;return f.play=function(){return k.nextTick(this._.onplay),-1===k.inlets.indexOf(this)},f.pause=function(){k.nextTick(this._.onpause)},f.process=function(a){var b=this._.node;1&b.playbackState?(b.process(a),this.cells[1].set(b.cells[1]),this.cells[2].set(b.cells[2])):(this.cells[1].set(t.emptycell),this.cells[2].set(t.emptycell))},a}(),I=function(){function a(){this.context=this,this.tickID=0,this.impl=null,this.amp=.8,this.status=d,this.samplerate=44100,this.channels=2,this.cellsize=64,this.streammsec=20,this.streamsize=0,this.currentTime=0,this.nextTicks=[],this.inlets=[],this.timers=[],this.listeners=[],this.deferred=null,this.recStart=0,this.recBuffers=null,this.delayProcess=b(this),this.events=null,t.currentTimeIncr=1e3*this.cellsize/this.samplerate,t.emptycell=new t.SignalArray(this.cellsize),this.reset(!0)}var b=function(a){return function(){a.recStart=Date.now(),a.process()}},f=a.prototype;f.bind=function(a,b){if("function"==typeof a){var c=new a(this,b);this.impl=c,this.impl.defaultSamplerate&&(this.samplerate=this.impl.defaultSamplerate)}return this},f.setup=function(a){return"object"==typeof a&&(-1!==h.indexOf(a.samplerate)&&(this.samplerate=a.samplerate<=this.impl.maxSamplerate?a.samplerate:this.impl.maxSamplerate),-1!==i.indexOf(a.cellsize)&&(this.cellsize=a.cellsize),"undefined"!=typeof Float64Array&&"undefined"!=typeof a.f64&&(p=!!a.f64,t.SignalArray=p?Float64Array:Float32Array)),t.currentTimeIncr=1e3*this.cellsize/this.samplerate,t.emptycell=new t.SignalArray(this.cellsize),this},f.getAdjustSamples=function(a){var b,c;return a=a||this.samplerate,b=this.streammsec/1e3*a,c=Math.ceil(Math.log(b)*Math.LOG2E),c=8>c?8:c>14?14:c,1<<c},f.play=function(){return this.status===d&&(this.status=e,this.streamsize=this.getAdjustSamples(),this.strmL=new t.SignalArray(this.streamsize),this.strmR=new t.SignalArray(this.streamsize),this.impl.play(),this.events.emit("play")),this},f.pause=function(){return this.status===e&&(this.status=d,this.impl.pause(),this.events.emit("pause")),this},f.reset=function(a){return a&&(this.events=new x(this).on("addObject",function(){this.status===d&&this.play()}).on("removeObject",function(){this.status===e&&this.inlets.length+this.timers.length+this.listeners.length===0&&this.pause()})),this.currentTime=0,this.nextTicks=[],this.inlets=[],this.timers=[],this.listeners=[],this},f.process=function(){var a,b,c,d,e,f,h,i,j=this.tickID,k=this.strmL,l=this.strmR,m=this.amp,n=this.streamsize,o=0,p=this.cellsize,q=this.streamsize/this.cellsize,r=this.timers,s=this.inlets,u=this.listeners,v=t.currentTimeIncr;for(d=0;n>d;++d)k[d]=l[d]=0;for(;q--;){for(++j,e=0,f=r.length;f>e;++e)1&r[e].playbackState&&r[e].process(j);for(e=0,f=s.length;f>e;++e)if(a=s[e],a.process(j),1&a.playbackState)for(b=a.cells[1],c=a.cells[2],h=0,d=o;p>h;++h,++d)k[d]+=b[h],l[d]+=c[h];for(o+=p,e=0,f=u.length;f>e;++e)1&u[e].playbackState&&u[e].process(j);for(this.currentTime+=v,i=this.nextTicks.splice(0),e=0,f=i.length;f>e;++e)i[e]()}for(d=0;n>d;++d)a=k[d]*m,-1>a?a=-1:a>1&&(a=1),k[d]=a,a=l[d]*m,-1>a?a=-1:a>1&&(a=1),l[d]=a;this.tickID=j;var w=this.currentTime;if(this.status===g){if(2===this.recCh)this.recBuffers.push(new t.SignalArray(k)),this.recBuffers.push(new t.SignalArray(l));else{var x=new t.SignalArray(k.length);for(d=0,n=x.length;n>d;++d)x[d]=.5*(k[d]+l[d]);this.recBuffers.push(x)}if(w>=this.maxDuration)this.deferred.sub.reject();else if(w>=this.recDuration)this.deferred.sub.resolve();else{var y=Date.now();y-this.recStart>20?setTimeout(this.delayProcess,10):this.process()}}},f.nextTick=function(a){this.status===d?a():this.nextTicks.push(a)},f.rec=function(){t.fix_iOS6_1_problem(!0);var a=new y(this);if(this.deferred)return console.warn("rec deferred is exists??"),a.reject().promise();if(this.status!==d)return console.log("status is not none",this.status),a.reject().promise();var b=0,e=arguments,f=v(e[b])?e[b++]:{},h=e[b];if("function"!=typeof h)return console.warn("no function"),a.reject().promise();this.deferred=a,this.status=g,this.reset();var i=new r("+"),k=new y(this),l={done:function(){k.resolve.apply(k,c.call(arguments))},send:function(){i.append.apply(i,arguments)}},m=this;return k.then(j,function(){t.fix_iOS6_1_problem(!1),j.call(m,!0)}),this.deferred.sub=k,this.savedSamplerate=this.samplerate,this.samplerate=f.samplerate||this.samplerate,this.recDuration=f.recDuration||1/0,this.maxDuration=f.maxDuration||6e5,this.recCh=f.ch||1,2!==this.recCh&&(this.recCh=1),this.recBuffers=[],this.streamsize=this.getAdjustSamples(),this.strmL=new t.SignalArray(this.streamsize),this.strmR=new t.SignalArray(this.streamsize),this.inlets.push(i),h(l),setTimeout(this.delayProcess,10),a.promise()};var j=function(){this.status=d,this.reset();var a,b=this.recBuffers,c=this.samplerate,e=this.streamsize;this.samplerate=this.savedSamplerate,a=1/0!==this.recDuration?this.recDuration*c*.001|0:(b.length>>this.recCh-1)*e;var f,g,h=a/e|0,i=0,j=0,k=a;if(2===this.recCh){var l=new t.SignalArray(a),m=new t.SignalArray(a),n=new t.SignalArray(a);for(g=0;h>g;++g)if(l.set(b[i++],j),m.set(b[i++],j),j+=e,k-=e,k>0&&e>k){l.set(b[i++].subarray(0,k),j),m.set(b[i++].subarray(0,k),j);break}for(g=0,h=a;h>g;++g)n[g]=.5*(l[g]+m[g]);f={samplerate:c,channels:2,buffer:[n,l,m]}}else{var o=new t.SignalArray(a);for(g=0;h>g;++g)if(o.set(b[i++],j),j+=e,k-=e,k>0&&e>k){o.set(b[i++].subarray(0,k),j);break}f={samplerate:c,channels:1,buffer:[o]}}var p=[].concat.apply([f],arguments);this.deferred.resolve.apply(this.deferred,p),this.deferred=null};return f.on=function(a,b){this.events.on(a,b)},f.once=function(a,b){this.events.once(a,b)},f.off=function(a,b){this.events.off(a,b)},f.removeAllListeners=function(a){this.events.removeListeners(a)},f.listeners=function(a){return this.events.listeners(a)},f.fix_iOS6_1_problem=function(a){this.impl.fix_iOS6_1_problem&&this.impl.fix_iOS6_1_problem(a)},a}(),J=null,K=a;"undefined"!=typeof window&&(K=window.AudioContext||window.webkitAudioContext),J="undefined"!=typeof K?function(a){var b,c,d=new K;t._audioContext=d,this.maxSamplerate=d.sampleRate,this.defaultSamplerate=d.sampleRate,this.env="webkit";var e=navigator.userAgent;if(e.match(/linux/i)?a.streammsec*=8:e.match(/win(dows)?\s*(nt 5\.1|xp)/i)&&(a.streammsec*=4),this.play=function(){var e,f,g,h=a.getAdjustSamples(d.sampleRate),i=a.streamsize;a.samplerate===d.sampleRate?e=function(b){var c=b.outputBuffer;a.process(),c.getChannelData(0).set(a.strmL),c.getChannelData(1).set(a.strmR)}:2*a.samplerate===d.sampleRate?e=function(b){var c,d,e=a.strmL,f=a.strmR,g=b.outputBuffer,h=g.getChannelData(0),i=g.getChannelData(1),j=g.length;for(a.process(),c=d=0;j>c;c+=2,++d)h[c]=h[c+1]=e[d],i[c]=i[c+1]=f[d]}:(f=i,g=a.samplerate/d.sampleRate,e=function(b){var c,d=a.strmL,e=a.strmR,h=b.outputBuffer,j=h.getChannelData(0),k=h.getChannelData(1),l=h.length;for(c=0;l>c;++c)f>=i&&(a.process(),f-=i),j[c]=d[0|f],k[c]=e[0|f],f+=g}),b=d.createBufferSource(),c=d.createScriptProcessor(h,2,a.channels),c.onaudioprocess=e,b.noteOn&&b.noteOn(0),b.connect(c),c.connect(d.destination)},this.pause=function(){b.disconnect(),c.disconnect()},o){var f=0,g=d.createBufferSource();this.fix_iOS6_1_problem=function(a){f+=a?1:-1,1===f?(g.noteOn(0),g.connect(d.destination)):0===f&&g.disconnect()}}}:function(){this.maxSamplerate=48e3,this.defaultSamplerate=44100,this.env="nop",this.play=function(){},this.pause=function(){}},k=(new I).bind(J);var L=b;"node"===n||"undefined"!=typeof module&&module.exports?module.exports=global.timbre=L:"browser"===n&&(L.noConflict=function(){var a=window.timbre,b=window.T;return function(c){return window.T===L&&(window.T=b),c&&window.timbre===L&&(window.timbre=a),L}}(),window.timbre=window.T=L),function(){function a(a){try{return b.plugins&&b.mimeTypes&&b.mimeTypes.length?b.plugins["Shockwave Flash"].description.match(/([0-9]+)/)[a]:new ActiveXObject("ShockwaveFlash.ShockwaveFlash").GetVariable("$version").match(/([0-9]+)/)[a]}catch(c){return-1}}if("nop"===k.impl.env&&"browser"===n&&!o){var b=navigator;if(!(a(0)<10)){var c,d="TimbreFlashPlayerDiv",e=function(){var a=document.getElementsByTagName("script");if(a&&a.length)for(var b,c=0,d=a.length;d>c;++c)if(b=/^(.*\/)timbre(?:\.dev)?\.js$/i.exec(a[c].src))return b[1]+"timbre.swf"}();window.timbrejs_flashfallback_init=function(){function a(a){var b=0;this.maxSamplerate=44100,this.defaultSamplerate=44100,this.env="flash",this.play=function(){var d,f=new Array(a.streamsize*a.channels),g=a.streammsec,h=0,i=a.streamsize/a.samplerate*1e3,j=Date.now();d=function(){if(!(h>Date.now()-j)){var b=a.strmL,d=a.strmR,e=f.length,g=b.length;for(a.process();g--;)f[--e]=32768*d[g]|0,f[--e]=32768*b[g]|0;c.writeAudio(f.join(" ")),h+=i}},c.setup?(c.setup(a.channels,a.samplerate),b=setInterval(d,g)):console.warn("Cannot find "+e)},this.pause=function(){0!==b&&(c.cancel(),clearInterval(b),b=0)}}k.bind(a),delete window.timbrejs_flashfallback_init};var f,g,h=e,i=h+"?"+ +new Date,j="TimbreFlashPlayer",l=document.createElement("div");l.id=d,l.style.display="inline",l.width=l.height=1,b.plugins&&b.mimeTypes&&b.mimeTypes.length?(f=document.createElement("object"),f.id=j,f.classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000",f.width=f.height=1,f.setAttribute("data",i),f.setAttribute("type","application/x-shockwave-flash"),g=document.createElement("param"),g.setAttribute("name","allowScriptAccess"),g.setAttribute("value","always"),f.appendChild(g),l.appendChild(f)):l.innerHTML='<object id="'+j+'" classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" width="1" height="1"><param name="movie" value="'+i+'" /><param name="bgcolor" value="#FFFFFF" /><param name="quality" value="high" /><param name="allowScriptAccess" value="always" /></object>',window.addEventListener("load",function(){document.body.appendChild(l),c=document[j]
@@ -1129,1221 +1518,7 @@ b.plotData=e,b.plotFlush=null}return g.call(this,a)},c.register("scope",b)}(timb
 //# sourceMappingURL=timbre.js.map
 return exports;
 })({});
-window.meshes = {};
-window.meshes.tiles = {
-dirt:{
-colors4:new Float32Array([
-     157,      74,     134,     255,     177,      68,
-     161,     255,     182,      66,     168,     255,
-     202,      57,     193,     255,     165,      71,
-     146,     255,     181,      66,     166,     255,
-     165,      71,     146,     255,     163,      72,
-     143,     255,     159,      73,     137,     255,
-     206,      56,     198,     255,     181,      66,
-     166,     255,     220,      48,     214,     255,
-     190,      63,     178,     255,     192,      62,
-     180,     255,     171,      70,     154,     255,
-     187,      64,     175,     255,     171,      70,
-     154,     255,     159,      73,     137,     255,
-     171,      70,     154,     255,     163,      72,
-     143,     255,     211,      53,     203,     255,
-     188,      64,     176,     255,     177,      68,
-     161,     255,     157,      74,     134,     255,
-     211,      53,     203,     255,     163,      72,
-     143,     255,     157,      74,     134,     255,
-     157,      74,     134,     255,     176,      68,
-     160,     255,     187,      64,     174,     255,
-     192,      62,     180,     255,     188,      64,
-     176,     255,     163,      72,     143,     255,
-     159,      73,     137,     255,     211,      53,
-     203,     255,     220,      48,     214,     255,
-     196,      60,     186,     255,     174,      69,
-     157,     255,     187,      64,     174,     255,
-     196,      60,     186,     255,     185,      65,
-     171,     255,     177,      68,     161,     255,
-     220,      48,     214,     255,     196,      60,
-     186,     255,     195,      61,     184,     255,
-     220,      48,     214,     255,     211,      53,
-     203,     255,     174,      69,     157,     255,
-     176,      68,     160,     255,     157,      74,
-     134,     255,     182,      66,     168,     255,
-     206,      56,     198,     255,     202,      57,
-     193,     255,     181,      66,     166,     255,
-     181,      66,     166,     255,     165,      71,
-     146,     255,     159,      73,     137,     255,
-     198,      59,     188,     255,     206,      56,
-     198,     255,     220,      48,     214,     255,
-     187,      64,     175,     255,     190,      63,
-     178,     255,     171,      70,     154,     255,
-     163,      72,     143,     255,     187,      64,
-     175,     255,     159,      73,     137,     255,
-     159,      73,     137,     255,     171,      70,
-     154,     255,     211,      53,     203,     255,
-     163,      72,     143,     255,     188,      64,
-     176,     255,     157,      74,     134,     255,
-     174,      69,     157,     255,     211,      53,
-     203,     255,     157,      74,     134,     255,
-     174,      69,     157,     255,     157,      74,
-     134,     255,     187,      64,     174,     255,
-     171,      70,     154,     255,     192,      62,
-     180,     255,     163,      72,     143,     255,
-     181,      66,     166,     255,     159,      73,
-     137,     255,     220,      48,     214,     255,
-     185,      65,     171,     255,     196,      60,
-     186,     255,     187,      64,     174,     255,
-     195,      61,     184,     255,     196,      60,
-     186,     255,     177,      68,     161,     255,
-     198,      59,     188,     255,     220,      48,
-     214,     255,     195,      61,     184,     255,
-     196,      60,     186,     255,     220,      48,
-     214,     255,     174,      69,     157,     255]),
-localToParent:new engine.Mat4(1.0,0.0,0.0,0.0, 0.0,1.0,0.0,0.0, 0.0,0.0,1.0,0.0, 2.0,0.0,0.0,1.0),
-localToWorld:new engine.Mat4(1.0,0.0,0.0,0.0, 0.0,1.0,0.0,0.0, 0.0,0.0,1.0,0.0, 2.0,0.0,0.0,1.0),
-verts3:new Float32Array([
-     0.5,     0.5,0.0614427,       1,     0.5,       0,
-       1,       1,       0,      -1,      -1,       0,
-    -0.5,      -1,       0,    -0.5,    -0.5,0.0212725,
-    -0.5,      -1,       0,       0,      -1,       0,
-       0,    -0.5,0.0390998,      -1,    -0.5,       0,
-    -0.5,    -0.5,0.0212725,    -0.5,       0,0.191452,
-       1,      -1,       0,       1,    -0.5,       0,
-     0.5,    -0.5,-0.0390999,     0.5,      -1,       0,
-     0.5,    -0.5,-0.0390999,       0,    -0.5,0.0390998,
-     0.5,    -0.5,-0.0390999,     0.5,       0,0.0390999,
-       0,       0,0.135595,       1,       0,       0,
-       1,     0.5,       0,     0.5,     0.5,0.0614427,
-       0,       0,0.135595,     0.5,       0,0.0390999,
-     0.5,     0.5,0.0614427,     0.5,     0.5,0.0614427,
-     0.5,       1,       0,       0,       1,       0,
-       1,    -0.5,       0,       1,       0,       0,
-     0.5,       0,0.0390999,       0,    -0.5,0.0390998,
-       0,       0,0.135595,    -0.5,       0,0.191452,
-    -0.5,     0.5,0.121358,       0,     0.5,       0,
-       0,       1,       0,    -0.5,     0.5,0.121358,
-    -0.5,       1,       0,      -1,       1,       0,
-    -0.5,       0,0.191452,    -0.5,     0.5,0.121358,
-      -1,     0.5,       0,    -0.5,       0,0.191452,
-       0,       0,0.135595,       0,     0.5,       0,
-     0.5,       1,       0,     0.5,     0.5,0.0614427,
-       1,       1,       0,      -1,    -0.5,       0,
-      -1,      -1,       0,    -0.5,    -0.5,0.0212725,
-    -0.5,    -0.5,0.0212725,    -0.5,      -1,       0,
-       0,    -0.5,0.0390998,      -1,       0,       0,
-      -1,    -0.5,       0,    -0.5,       0,0.191452,
-     0.5,      -1,       0,       1,      -1,       0,
-     0.5,    -0.5,-0.0390999,       0,      -1,       0,
-     0.5,      -1,       0,       0,    -0.5,0.0390998,
-       0,    -0.5,0.0390998,     0.5,    -0.5,-0.0390999,
-       0,       0,0.135595,     0.5,       0,0.0390999,
-       1,       0,       0,     0.5,     0.5,0.0614427,
-       0,     0.5,       0,       0,       0,0.135595,
-     0.5,     0.5,0.0614427,       0,     0.5,       0,
-     0.5,     0.5,0.0614427,       0,       1,       0,
-     0.5,    -0.5,-0.0390999,       1,    -0.5,       0,
-     0.5,       0,0.0390999,    -0.5,    -0.5,0.0212725,
-       0,    -0.5,0.0390998,    -0.5,       0,0.191452,
-    -0.5,       1,       0,    -0.5,     0.5,0.121358,
-       0,       1,       0,      -1,     0.5,       0,
-    -0.5,     0.5,0.121358,      -1,       1,       0,
-      -1,       0,       0,    -0.5,       0,0.191452,
-      -1,     0.5,       0,    -0.5,     0.5,0.121358,
-    -0.5,       0,0.191452,       0,     0.5,       0])},
-grass:{
-colors4:new Float32Array([
-      66,     168,      57,     255,      66,     168,
-      57,     255,      66,     168,      57,     255,
-      71,     179,      61,     255,      71,     179,
-      61,     255,      73,     184,      64,     255,
-      71,     179,      61,     255,      66,     168,
-      57,     255,      66,     168,      57,     255,
-      73,     184,      63,     255,      73,     184,
-      64,     255,      75,     188,      65,     255,
-      73,     184,      63,     255,      66,     168,
-      57,     255,      66,     168,      57,     255,
-      74,     188,      65,     255,      75,     190,
-      66,     255,      75,     190,      66,     255,
-      71,     179,      61,     255,      66,     168,
-      57,     255,      66,     168,      57,     255,
-      71,     179,      61,     255,      71,     179,
-      61,     255,      73,     184,      64,     255,
-      71,     179,      61,     255,      66,     168,
-      57,     255,      66,     168,      57,     255,
-      71,     181,      62,     255,      71,     181,
-      62,     255,      73,     184,      64,     255,
-      71,     181,      62,     255,      66,     168,
-      57,     255,      66,     168,      57,     255,
-      71,     179,      61,     255,      71,     179,
-      61,     255,      73,     184,      64,     255,
-      71,     179,      61,     255,      66,     168,
-      57,     255,      66,     168,      57,     255,
-      66,     168,      57,     255,      66,     168,
-      57,     255,      66,     168,      57,     255,
-      75,     190,      66,     255,      75,     190,
-      66,     255,      75,     190,      66,     255,
-      75,     190,      66,     255,      75,     190,
-      66,     255,      71,     179,      61,     255,
-      71,     179,      61,     255,      75,     190,
-      66,     255,      75,     190,      66,     255,
-      75,     190,      66,     255,      75,     190,
-      66,     255,      73,     184,      64,     255,
-      73,     184,      64,     255,      75,     190,
-      66,     255,      75,     190,      66,     255,
-      71,     179,      61,     255,      75,     190,
-      66,     255,      73,     184,      64,     255,
-      73,     184,      64,     255,      75,     190,
-      66,     255,      71,     179,      61,     255,
-      71,     179,      61,     255,      71,     179,
-      61,     255,      66,     168,      57,     255,
-      75,     190,      66,     255,      75,     190,
-      66,     255,      75,     190,      66,     255,
-      73,     184,      63,     255,      75,     190,
-      66,     255,      75,     190,      66,     255,
-      75,     190,      66,     255,      75,     190,
-      66,     255,      73,     184,      64,     255,
-      75,     190,      66,     255,      75,     190,
-      66,     255,      73,     184,      63,     255,
-      73,     184,      63,     255,      75,     190,
-      66,     255,      73,     184,      64,     255,
-      75,     188,      65,     255,      75,     190,
-      66,     255,      73,     184,      63,     255,
-      73,     184,      63,     255,      73,     184,
-      63,     255,      73,     184,      64,     255,
-      73,     184,      63,     255,      73,     184,
-      63,     255,      66,     168,      57,     255,
-      74,     187,      65,     255,      75,     190,
-      66,     255,      75,     190,      66,     255,
-      71,     179,      61,     255,      75,     190,
-      66,     255,      75,     190,      66,     255,
-      75,     190,      66,     255,      75,     190,
-      66,     255,      75,     190,      66,     255,
-      74,     187,      65,     255,      75,     190,
-      66,     255,      71,     179,      61,     255,
-      75,     190,      66,     255,      74,     187,
-      65,     255,      71,     179,      61,     255,
-      75,     190,      66,     255,      74,     187,
-      65,     255,      75,     190,      66,     255,
-      71,     179,      61,     255,      71,     179,
-      61,     255,      66,     168,      57,     255,
-      75,     190,      66,     255,      75,     190,
-      66,     255,      71,     179,      61,     255,
-      74,     188,      65,     255,      71,     179,
-      61,     255,      71,     179,      61,     255,
-      71,     179,      61,     255,      75,     190,
-      66,     255,      75,     190,      66,     255,
-      73,     184,      64,     255,      71,     179,
-      61,     255,      75,     190,      66,     255,
-      73,     184,      64,     255,      75,     190,
-      66,     255,      75,     190,      66,     255,
-      75,     190,      66,     255,      75,     190,
-      66,     255,      71,     179,      61,     255,
-      75,     190,      66,     255,      75,     190,
-      66,     255,      75,     190,      66,     255,
-      73,     184,      64,     255,      75,     190,
-      66,     255,      71,     179,      61,     255,
-      71,     179,      61,     255,      71,     179,
-      61,     255,      66,     168,      57,     255,
-      71,     179,      61,     255,      75,     190,
-      66,     255,      75,     190,      66,     255,
-      71,     181,      62,     255,      73,     184,
-      64,     255,      75,     190,      66,     255,
-      71,     181,      62,     255,      75,     190,
-      66,     255,      75,     190,      66,     255,
-      73,     184,      64,     255,      71,     181,
-      62,     255,      75,     190,      66,     255,
-      73,     184,      64,     255,      75,     190,
-      66,     255,      75,     190,      66,     255,
-      75,     188,      65,     255,      75,     190,
-      66,     255,      75,     190,      66,     255,
-      71,     181,      62,     255,      75,     190,
-      66,     255,      75,     190,      66,     255,
-      71,     181,      62,     255,      71,     181,
-      62,     255,      66,     168,      57,     255,
-      73,     184,      64,     255,      75,     190,
-      66,     255,      75,     190,      66,     255,
-      71,     179,      61,     255,      75,     190,
-      66,     255,      75,     190,      66,     255,
-      75,     190,      66,     255,      75,     190,
-      66,     255,      73,     184,      64,     255,
-      73,     184,      64,     255,      75,     190,
-      66,     255,      75,     188,      65,     255,
-      75,     188,      65,     255,      75,     190,
-      66,     255,      71,     179,      61,     255,
-      71,     179,      61,     255,      75,     190,
-      66,     255,      73,     184,      64,     255,
-      73,     184,      64,     255,      75,     188,
-      65,     255,      71,     179,      61,     255,
-      71,     179,      61,     255,      71,     179,
-      61,     255,      66,     168,      57,     255]),
-localToParent:new engine.Mat4(1.0,0.0,0.0,0.0, 0.0,1.0,0.0,0.0, 0.0,0.0,1.0,0.0, 0.0,0.0,0.0,1.0),
-localToWorld:new engine.Mat4(1.0,0.0,0.0,0.0, 0.0,1.0,0.0,0.0, 0.0,0.0,1.0,0.0, 0.0,0.0,0.0,1.0),
-verts3:new Float32Array([
-       1,      -1,       0,       1,       1,       0,
-      -1,       1,       0,      -1,9.56118e-08,0.186369,
-       1,9.56118e-08,0.186369,-0.0315291,6.76656e-08,0.283761,
-      -1,9.56118e-08,0.186369,      -1,9.56118e-08,       0,
-       1,9.56118e-08,       0,      -1,0.527658,0.276645,
-0.296056,0.527658,0.283761,-0.0735676,0.527658,0.359834,
-      -1,0.527658,0.276645,      -1,0.527658,       0,
-       1,0.527658,       0,-0.30478,-0.775574,0.344343,
- 0.60956,-0.493759,0.388857,0.399367,-0.672466,0.535604,
-      -1,-0.672466,0.186369,      -1,-0.672466,       0,
-       1,-0.672466,       0,0.034938,       1,0.186369,
-0.0349381,      -1,0.186369,0.034938,-0.00340888,0.283761,
-0.034938,       1,0.186369,0.034938,       1,       0,
-0.0349381,      -1,       0,0.543705,       1,0.220528,
-0.543705,      -1,0.220528,0.543705,-0.00340888,0.283761,
-0.543705,       1,0.220528,0.543705,       1,       0,
-0.543705,      -1,       0,-0.510551,       1,0.186369,
--0.51055,      -1,0.186369,-0.51055,-0.00340888,0.283761,
--0.510551,       1,0.186369,-0.510551,       1,       0,
--0.51055,      -1,       0,      -1,      -1,       0,
-       1,      -1,       0,      -1,       1,       0,
--0.0735676,2.8514e-08,0.546503,-0.30478,0.0973862,0.809244,
--0.420387,2.97669e-08,0.535992,-0.420387,2.97669e-08,0.535992,
--0.645405,-1.2993e-08,0.894689,      -1,9.56118e-08,0.186369,
-       1,9.56118e-08,0.186369, 0.92485,3.885e-08,0.588541,
- 0.60956,-0.167262,0.388857, 0.60956,-0.167262,0.388857,
-0.399367,2.50686e-08,0.641089,-0.0315291,6.76656e-08,0.283761,
--0.0315291,6.76656e-08,0.283761,-0.0735676,2.8514e-08,0.546503,
--0.420387,2.97669e-08,0.535992,       1,9.56118e-08,0.186369,
- 0.60956,-0.167262,0.388857,-0.0315291,6.76656e-08,0.283761,
--0.0315291,6.76656e-08,0.283761,-0.420387,2.97669e-08,0.535992,
-      -1,9.56118e-08,0.186369,       1,9.56118e-08,0.186369,
-      -1,9.56118e-08,0.186369,       1,9.56118e-08,       0,
--0.30478,0.527658, 0.50789,-0.420387,0.632472,0.600865,
--0.645405,0.527658,0.748577,       1,0.527658,0.276645,
- 0.92485,0.527658,0.588541, 0.60956,0.527658,0.544147,
- 0.60956,0.527658,0.544147,0.399367,0.527658,0.641089,
-0.296056,0.527658,0.283761,-0.30478,0.527658, 0.50789,
--0.645405,0.527658,0.748577,      -1,0.527658,0.276645,
-       1,0.527658,0.276645, 0.60956,0.527658,0.544147,
-0.296056,0.527658,0.283761,-0.0735676,0.527658,0.359834,
--0.30478,0.527658, 0.50789,      -1,0.527658,0.276645,
-      -1,0.527658,0.276645,       1,0.527658,0.276645,
-0.296056,0.527658,0.283761,       1,0.527658,0.276645,
-      -1,0.527658,0.276645,       1,0.527658,       0,
--0.30478,-0.775574,0.344343,-0.420387,-0.61805,0.535992,
--0.645405,-0.672466,0.536051,       1,-0.672466,0.186369,
- 0.92485,-0.672466,0.588541, 0.60956,-0.493759,0.388857,
-0.399367,-0.672466,0.535604,0.210314,-0.546469,0.788511,
--0.0735676,-0.75208,0.546503,-0.30478,-0.775574,0.344343,
--0.645405,-0.672466,0.536051,      -1,-0.672466,0.186369,
- 0.60956,-0.493759,0.388857,-0.30478,-0.775574,0.344343,
-       1,-0.672466,0.186369,-0.0735676,-0.75208,0.546503,
--0.30478,-0.775574,0.344343,0.399367,-0.672466,0.535604,
-       1,-0.672466,0.186369,      -1,-0.672466,0.186369,
-       1,-0.672466,       0,0.0349379,0.385449,0.535992,
-0.0349379,0.610467,0.894689,0.034938,       1,0.186369,
--0.30478,-0.775574,0.344343,      -1,-0.672466,0.186369,
-       1,-0.672466,0.186369,0.0349381,      -1,0.186369,
-0.034938,-0.959788,0.588541,-0.132324,-0.644498, 0.53284,
-0.034938,-0.00340888,0.283761,0.0349381,      -1,0.186369,
-0.034938,-0.434305,0.487508,0.034938,-0.00340888,0.283761,
-0.034938,0.0386297,0.546503,0.132324,0.269842,0.415691,
-0.132324,0.269842,0.415691,0.0349379,0.385449,0.535992,
-0.034938,       1,0.186369,0.543705,0.0386297,0.546503,
-0.641091,0.269842,0.809244,0.543705,0.385449,0.535992,
-0.034938,-0.00340888,0.283761,0.132324,0.269842,0.415691,
-0.034938,       1,0.186369,0.0349381,      -1,0.186369,
-0.034938,       1,0.186369,0.0349381,      -1,       0,
-0.0349381,      -1,0.186369,-0.132324,-0.644498, 0.53284,
-0.034938,-0.434305,0.487508,0.543705,       1,0.220528,
-0.543705,-0.00340888,0.283761,0.543705,0.610467,0.433944,
-0.543705,      -1,0.220528,0.543705,-0.959788,0.559745,
-0.376443,-0.644498,0.657625,0.543705,-0.00340888,0.283761,
-0.543705,      -1,0.220528,0.543705,-0.434305,0.641089,
-0.543705,-0.00340888,0.283761,0.543705,0.0386297,0.546503,
-0.543705,0.385449,0.535992,-0.413164,0.269842,0.358098,
--0.510551,0.385449,0.535992,-0.510551,0.610467,0.443543,
-0.543705,      -1,0.220528,0.376443,-0.644498,0.657625,
-0.543705,-0.434305,0.641089,0.543705,      -1,0.220528,
-0.543705,       1,0.220528,0.543705,      -1,       0,
-0.543705,-0.00340888,0.283761,0.543705,0.385449,0.535992,
-0.543705,0.610467,0.433944,-0.51055,      -1,0.186369,
--0.51055,-0.959788,0.588541,-0.677813,-0.644498,0.388857,
--0.677813,-0.644498,0.388857,-0.51055,-0.434305,0.641089,
--0.51055,-0.00340888,0.283761,-0.51055,-0.00340888,0.283761,
--0.510551,0.0386297,0.546503,-0.413164,0.269842,0.358098,
--0.413164,0.269842,0.358098,-0.510551,0.610467,0.443543,
--0.510551,       1,0.186369,-0.51055,      -1,0.186369,
--0.677813,-0.644498,0.388857,-0.51055,-0.00340888,0.283761,
--0.51055,-0.00340888,0.283761,-0.413164,0.269842,0.358098,
--0.510551,       1,0.186369,-0.51055,      -1,0.186369,
--0.510551,       1,0.186369,-0.51055,      -1,       0])}};
-window.meshes.tree = {
-trunk:{
-colors4:new Float32Array([
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255]),
-leaves1:{
-colors4:new Float32Array([
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255]),
-localToParent:new engine.Mat4(2.862325429916382,-1.3573527336120605,0.1249854788184166,0.0, 1.0375573635101318,2.1735551357269287,-0.15638351440429688,0.0, -0.01248889695852995,0.12138758599758148,1.6042909622192383,0.0, -0.38833633065223694,-0.20184774696826935,5.046411514282227,1.0),
-localToWorld:new engine.Mat4(2.862325429916382,-1.3573527336120605,0.1249854788184166,0.0, 1.0375573635101318,2.1735551357269287,-0.15638351440429688,0.0, -0.01248889695852995,0.12138758599758148,1.6042909622192383,0.0, -0.38833633065223694,-0.20184774696826935,5.046411514282227,1.0),
-verts3:new Float32Array([
-0.0905118,0.069925,-0.342366,0.515835,-0.239086,-0.19302,
--0.0719437,-0.43007,-0.193021,0.814119, -0.4558,0.210414,
-0.515835,-0.239086,-0.19302, 0.94116,0.069925,0.131898,
-0.0905118,0.069925,-0.342366,-0.0719437,-0.43007,-0.193021,
--0.435218,0.069925,-0.193018,0.0905118,0.069925,-0.342366,
--0.435218,0.069925,-0.193018,-0.0719437, 0.56992,-0.193021,
-0.0905118,0.069925,-0.342366,-0.0719437, 0.56992,-0.193021,
-0.515835,0.378936,-0.19302,0.814119, -0.4558,0.210414,
- 0.94116,0.069925,0.131898, 1.04157,-0.239088,0.657634,
--0.185876,-0.780724,0.210414,0.353381,-0.739087,0.131896,
-0.0905118,-0.930075,0.657634,-0.803914,0.069925,0.210418,
--0.597678,-0.430072,0.131898,-0.860546,-0.239088,0.657634,
--0.185876,0.920574,0.210414,-0.597678,0.569922,0.131898,
--0.497274,0.878942,0.657634,0.814119, 0.59565,0.210414,
-0.353381,0.878937,0.131896,0.678297,0.878942,0.657634,
-0.814119, -0.4558,0.210414, 1.04157,-0.239088,0.657634,
-0.678297,-0.739092,0.657634,-0.185876,-0.780724,0.210414,
-0.0905118,-0.930075,0.657634,-0.497274,-0.739092,0.657634,
--0.803914,0.069925,0.210418,-0.860546,-0.239088,0.657634,
--0.860546,0.378938,0.657634,-0.185876,0.920574,0.210414,
--0.497274,0.878942,0.657634,0.0905118, 1.06992,0.657634,
-0.814119, 0.59565,0.210414,0.678297,0.878942,0.657634,
- 1.04157,0.378938,0.657634,  0.3669,-0.780724, 1.10485,
-0.778701,-0.430072, 1.18337,0.252967,-0.43007, 1.50829,
--0.633096, -0.4558, 1.10485,-0.172357,-0.739087, 1.18337,
--0.334811,-0.239086, 1.50829,-0.633096, 0.59565, 1.10485,
--0.760136,0.069925, 1.18337,-0.334811,0.378936, 1.50829,
-  0.3669,0.920574, 1.10485,-0.172357,0.878937, 1.18337,
-0.252967, 0.56992, 1.50829,0.984938,0.069925, 1.10485,
-0.778701,0.569922, 1.18337,0.616242,0.069925, 1.50829,
--0.0719437,-0.43007,-0.193021,0.353381,-0.739087,0.131896,
--0.185876,-0.780724,0.210414,-0.0719437,-0.43007,-0.193021,
-0.515835,-0.239086,-0.19302,0.353381,-0.739087,0.131896,
-0.515835,-0.239086,-0.19302,0.814119, -0.4558,0.210414,
-0.353381,-0.739087,0.131896, 0.94116,0.069925,0.131898,
-0.515835,0.378936,-0.19302,0.814119, 0.59565,0.210414,
- 0.94116,0.069925,0.131898,0.515835,-0.239086,-0.19302,
-0.515835,0.378936,-0.19302,0.515835,-0.239086,-0.19302,
-0.0905118,0.069925,-0.342366,0.515835,0.378936,-0.19302,
--0.435218,0.069925,-0.193018,-0.597678,-0.430072,0.131898,
--0.803914,0.069925,0.210418,-0.435218,0.069925,-0.193018,
--0.0719437,-0.43007,-0.193021,-0.597678,-0.430072,0.131898,
--0.0719437,-0.43007,-0.193021,-0.185876,-0.780724,0.210414,
--0.597678,-0.430072,0.131898,-0.0719437, 0.56992,-0.193021,
--0.597678,0.569922,0.131898,-0.185876,0.920574,0.210414,
--0.0719437, 0.56992,-0.193021,-0.435218,0.069925,-0.193018,
--0.597678,0.569922,0.131898,-0.435218,0.069925,-0.193018,
--0.803914,0.069925,0.210418,-0.597678,0.569922,0.131898,
-0.515835,0.378936,-0.19302,0.353381,0.878937,0.131896,
-0.814119, 0.59565,0.210414,0.515835,0.378936,-0.19302,
--0.0719437, 0.56992,-0.193021,0.353381,0.878937,0.131896,
--0.0719437, 0.56992,-0.193021,-0.185876,0.920574,0.210414,
-0.353381,0.878937,0.131896, 1.04157,-0.239088,0.657634,
- 1.04157,0.378938,0.657634,0.984938,0.069925, 1.10485,
- 1.04157,-0.239088,0.657634, 0.94116,0.069925,0.131898,
- 1.04157,0.378938,0.657634, 0.94116,0.069925,0.131898,
-0.814119, 0.59565,0.210414, 1.04157,0.378938,0.657634,
-0.0905118,-0.930075,0.657634,0.678297,-0.739092,0.657634,
-  0.3669,-0.780724, 1.10485,0.0905118,-0.930075,0.657634,
-0.353381,-0.739087,0.131896,0.678297,-0.739092,0.657634,
-0.353381,-0.739087,0.131896,0.814119, -0.4558,0.210414,
-0.678297,-0.739092,0.657634,-0.860546,-0.239088,0.657634,
--0.497274,-0.739092,0.657634,-0.633096, -0.4558, 1.10485,
--0.860546,-0.239088,0.657634,-0.597678,-0.430072,0.131898,
--0.497274,-0.739092,0.657634,-0.597678,-0.430072,0.131898,
--0.185876,-0.780724,0.210414,-0.497274,-0.739092,0.657634,
--0.497274,0.878942,0.657634,-0.860546,0.378938,0.657634,
--0.633096, 0.59565, 1.10485,-0.497274,0.878942,0.657634,
--0.597678,0.569922,0.131898,-0.860546,0.378938,0.657634,
--0.597678,0.569922,0.131898,-0.803914,0.069925,0.210418,
--0.860546,0.378938,0.657634,0.678297,0.878942,0.657634,
-0.0905118, 1.06992,0.657634,  0.3669,0.920574, 1.10485,
-0.678297,0.878942,0.657634,0.353381,0.878937,0.131896,
-0.0905118, 1.06992,0.657634,0.353381,0.878937,0.131896,
--0.185876,0.920574,0.210414,0.0905118, 1.06992,0.657634,
-0.678297,-0.739092,0.657634,0.778701,-0.430072, 1.18337,
-  0.3669,-0.780724, 1.10485,0.678297,-0.739092,0.657634,
- 1.04157,-0.239088,0.657634,0.778701,-0.430072, 1.18337,
- 1.04157,-0.239088,0.657634,0.984938,0.069925, 1.10485,
-0.778701,-0.430072, 1.18337,-0.497274,-0.739092,0.657634,
--0.172357,-0.739087, 1.18337,-0.633096, -0.4558, 1.10485,
--0.497274,-0.739092,0.657634,0.0905118,-0.930075,0.657634,
--0.172357,-0.739087, 1.18337,0.0905118,-0.930075,0.657634,
-  0.3669,-0.780724, 1.10485,-0.172357,-0.739087, 1.18337,
--0.860546,0.378938,0.657634,-0.760136,0.069925, 1.18337,
--0.633096, 0.59565, 1.10485,-0.860546,0.378938,0.657634,
--0.860546,-0.239088,0.657634,-0.760136,0.069925, 1.18337,
--0.860546,-0.239088,0.657634,-0.633096, -0.4558, 1.10485,
--0.760136,0.069925, 1.18337,0.0905118, 1.06992,0.657634,
--0.172357,0.878937, 1.18337,  0.3669,0.920574, 1.10485,
-0.0905118, 1.06992,0.657634,-0.497274,0.878942,0.657634,
--0.172357,0.878937, 1.18337,-0.497274,0.878942,0.657634,
--0.633096, 0.59565, 1.10485,-0.172357,0.878937, 1.18337,
- 1.04157,0.378938,0.657634,0.778701,0.569922, 1.18337,
-0.984938,0.069925, 1.10485, 1.04157,0.378938,0.657634,
-0.678297,0.878942,0.657634,0.778701,0.569922, 1.18337,
-0.678297,0.878942,0.657634,  0.3669,0.920574, 1.10485,
-0.778701,0.569922, 1.18337,0.252967,-0.43007, 1.50829,
-0.616242,0.069925, 1.50829,0.0905118,0.069925, 1.65763,
-0.252967,-0.43007, 1.50829,0.778701,-0.430072, 1.18337,
-0.616242,0.069925, 1.50829,0.778701,-0.430072, 1.18337,
-0.984938,0.069925, 1.10485,0.616242,0.069925, 1.50829,
--0.334811,-0.239086, 1.50829,0.252967,-0.43007, 1.50829,
-0.0905118,0.069925, 1.65763,-0.334811,-0.239086, 1.50829,
--0.172357,-0.739087, 1.18337,0.252967,-0.43007, 1.50829,
--0.172357,-0.739087, 1.18337,  0.3669,-0.780724, 1.10485,
-0.252967,-0.43007, 1.50829,-0.334811,0.378936, 1.50829,
--0.334811,-0.239086, 1.50829,0.0905118,0.069925, 1.65763,
--0.334811,0.378936, 1.50829,-0.760136,0.069925, 1.18337,
--0.334811,-0.239086, 1.50829,-0.760136,0.069925, 1.18337,
--0.633096, -0.4558, 1.10485,-0.334811,-0.239086, 1.50829,
-0.252967, 0.56992, 1.50829,-0.334811,0.378936, 1.50829,
-0.0905118,0.069925, 1.65763,0.252967, 0.56992, 1.50829,
--0.172357,0.878937, 1.18337,-0.334811,0.378936, 1.50829,
--0.172357,0.878937, 1.18337,-0.633096, 0.59565, 1.10485,
--0.334811,0.378936, 1.50829,0.616242,0.069925, 1.50829,
-0.252967, 0.56992, 1.50829,0.0905118,0.069925, 1.65763,
-0.616242,0.069925, 1.50829,0.778701,0.569922, 1.18337,
-0.252967, 0.56992, 1.50829,0.778701,0.569922, 1.18337,
-  0.3669,0.920574, 1.10485,0.252967, 0.56992, 1.50829])},
-leaves2:{
-colors4:new Float32Array([
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255,
-       0,       0,       0,     255,       0,       0,
-       0,     255,       0,       0,       0,     255]),
-localToParent:new engine.Mat4(0.8917662501335144,-1.3549420833587646,-0.4864356517791748,0.0, 0.7433876395225525,0.7534973621368408,-0.7360014319419861,0.0, 0.5368422865867615,0.1160198450088501,0.6610075831413269,0.0, 1.623389720916748,-0.9112957715988159,4.59908390045166,1.0),
-localToWorld:new engine.Mat4(0.8917662501335144,-1.3549420833587646,-0.4864356517791748,0.0, 0.7433876395225525,0.7534973621368408,-0.7360014319419861,0.0, 0.5368422865867615,0.1160198450088501,0.6610075831413269,0.0, 1.623389720916748,-0.9112957715988159,4.59908390045166,1.0),
-verts3:new Float32Array([
--0.0420559,-0.409983,-0.982947,0.383267,-0.718994,-0.833602,
--0.204511,-0.909978,-0.833602,0.681551,-0.935708,-0.430167,
-0.383267,-0.718994,-0.833602,0.808592,-0.409983,-0.508683,
--0.0420559,-0.409983,-0.982947,-0.204511,-0.909978,-0.833602,
--0.567786,-0.409983,-0.833599,-0.0420559,-0.409983,-0.982947,
--0.567786,-0.409983,-0.833599,-0.204511,0.0900123,-0.833602,
--0.0420559,-0.409983,-0.982947,-0.204511,0.0900123,-0.833602,
-0.383267,-0.100972,-0.833602,0.681551,-0.935708,-0.430167,
-0.808592,-0.409983,-0.508683,0.909002,-0.718996,0.0170527,
--0.318444,-1.26063,-0.430167,0.220813,-1.21899,-0.508685,
--0.0420559,-1.40998,0.0170527,-0.936482,-0.409983,-0.430163,
--0.730245,-0.90998,-0.508684,-0.993114,-0.718996,0.0170527,
--0.318444,0.440666,-0.430167,-0.730245,0.090014,-0.508684,
--0.629841,0.399034,0.0170527,0.681551,0.115742,-0.430167,
-0.220813,0.399029,-0.508685, 0.54573,0.399034,0.0170527,
-0.681551,-0.935708,-0.430167,0.909002,-0.718996,0.0170527,
- 0.54573,  -1.219,0.0170527,-0.318444,-1.26063,-0.430167,
--0.0420559,-1.40998,0.0170527,-0.629841,  -1.219,0.0170527,
--0.936482,-0.409983,-0.430163,-0.993114,-0.718996,0.0170527,
--0.993114,-0.10097,0.0170527,-0.318444,0.440666,-0.430167,
--0.629841,0.399034,0.0170527,-0.0420559,0.590017,0.0170527,
-0.681551,0.115742,-0.430167, 0.54573,0.399034,0.0170527,
-0.909002,-0.10097,0.0170527,0.234332,-1.26063,0.464272,
-0.646134,-0.90998,0.542789,  0.1204,-0.909978,0.867707,
--0.765663,-0.935708,0.464272,-0.304925,-1.21899, 0.54279,
--0.467379,-0.718994,0.867707,-0.765663,0.115742,0.464272,
--0.892704,-0.409983,0.542789,-0.467379,-0.100972,0.867707,
-0.234332,0.440666,0.464272,-0.304925,0.399029, 0.54279,
-  0.1204,0.0900123,0.867707, 0.85237,-0.409983,0.464268,
-0.646134,0.090014,0.542789,0.483674,-0.409983,0.867704,
--0.204511,-0.909978,-0.833602,0.220813,-1.21899,-0.508685,
--0.318444,-1.26063,-0.430167,-0.204511,-0.909978,-0.833602,
-0.383267,-0.718994,-0.833602,0.220813,-1.21899,-0.508685,
-0.383267,-0.718994,-0.833602,0.681551,-0.935708,-0.430167,
-0.220813,-1.21899,-0.508685,0.808592,-0.409983,-0.508683,
-0.383267,-0.100972,-0.833602,0.681551,0.115742,-0.430167,
-0.808592,-0.409983,-0.508683,0.383267,-0.718994,-0.833602,
-0.383267,-0.100972,-0.833602,0.383267,-0.718994,-0.833602,
--0.0420559,-0.409983,-0.982947,0.383267,-0.100972,-0.833602,
--0.567786,-0.409983,-0.833599,-0.730245,-0.90998,-0.508684,
--0.936482,-0.409983,-0.430163,-0.567786,-0.409983,-0.833599,
--0.204511,-0.909978,-0.833602,-0.730245,-0.90998,-0.508684,
--0.204511,-0.909978,-0.833602,-0.318444,-1.26063,-0.430167,
--0.730245,-0.90998,-0.508684,-0.204511,0.0900123,-0.833602,
--0.730245,0.090014,-0.508684,-0.318444,0.440666,-0.430167,
--0.204511,0.0900123,-0.833602,-0.567786,-0.409983,-0.833599,
--0.730245,0.090014,-0.508684,-0.567786,-0.409983,-0.833599,
--0.936482,-0.409983,-0.430163,-0.730245,0.090014,-0.508684,
-0.383267,-0.100972,-0.833602,0.220813,0.399029,-0.508685,
-0.681551,0.115742,-0.430167,0.383267,-0.100972,-0.833602,
--0.204511,0.0900123,-0.833602,0.220813,0.399029,-0.508685,
--0.204511,0.0900123,-0.833602,-0.318444,0.440666,-0.430167,
-0.220813,0.399029,-0.508685,0.909002,-0.718996,0.0170527,
-0.909002,-0.10097,0.0170527, 0.85237,-0.409983,0.464268,
-0.909002,-0.718996,0.0170527,0.808592,-0.409983,-0.508683,
-0.909002,-0.10097,0.0170527,0.808592,-0.409983,-0.508683,
-0.681551,0.115742,-0.430167,0.909002,-0.10097,0.0170527,
--0.0420559,-1.40998,0.0170527, 0.54573,  -1.219,0.0170527,
-0.234332,-1.26063,0.464272,-0.0420559,-1.40998,0.0170527,
-0.220813,-1.21899,-0.508685, 0.54573,  -1.219,0.0170527,
-0.220813,-1.21899,-0.508685,0.681551,-0.935708,-0.430167,
- 0.54573,  -1.219,0.0170527,-0.993114,-0.718996,0.0170527,
--0.629841,  -1.219,0.0170527,-0.765663,-0.935708,0.464272,
--0.993114,-0.718996,0.0170527,-0.730245,-0.90998,-0.508684,
--0.629841,  -1.219,0.0170527,-0.730245,-0.90998,-0.508684,
--0.318444,-1.26063,-0.430167,-0.629841,  -1.219,0.0170527,
--0.629841,0.399034,0.0170527,-0.993114,-0.10097,0.0170527,
--0.765663,0.115742,0.464272,-0.629841,0.399034,0.0170527,
--0.730245,0.090014,-0.508684,-0.993114,-0.10097,0.0170527,
--0.730245,0.090014,-0.508684,-0.936482,-0.409983,-0.430163,
--0.993114,-0.10097,0.0170527, 0.54573,0.399034,0.0170527,
--0.0420559,0.590017,0.0170527,0.234332,0.440666,0.464272,
- 0.54573,0.399034,0.0170527,0.220813,0.399029,-0.508685,
--0.0420559,0.590017,0.0170527,0.220813,0.399029,-0.508685,
--0.318444,0.440666,-0.430167,-0.0420559,0.590017,0.0170527,
- 0.54573,  -1.219,0.0170527,0.646134,-0.90998,0.542789,
-0.234332,-1.26063,0.464272, 0.54573,  -1.219,0.0170527,
-0.909002,-0.718996,0.0170527,0.646134,-0.90998,0.542789,
-0.909002,-0.718996,0.0170527, 0.85237,-0.409983,0.464268,
-0.646134,-0.90998,0.542789,-0.629841,  -1.219,0.0170527,
--0.304925,-1.21899, 0.54279,-0.765663,-0.935708,0.464272,
--0.629841,  -1.219,0.0170527,-0.0420559,-1.40998,0.0170527,
--0.304925,-1.21899, 0.54279,-0.0420559,-1.40998,0.0170527,
-0.234332,-1.26063,0.464272,-0.304925,-1.21899, 0.54279,
--0.993114,-0.10097,0.0170527,-0.892704,-0.409983,0.542789,
--0.765663,0.115742,0.464272,-0.993114,-0.10097,0.0170527,
--0.993114,-0.718996,0.0170527,-0.892704,-0.409983,0.542789,
--0.993114,-0.718996,0.0170527,-0.765663,-0.935708,0.464272,
--0.892704,-0.409983,0.542789,-0.0420559,0.590017,0.0170527,
--0.304925,0.399029, 0.54279,0.234332,0.440666,0.464272,
--0.0420559,0.590017,0.0170527,-0.629841,0.399034,0.0170527,
--0.304925,0.399029, 0.54279,-0.629841,0.399034,0.0170527,
--0.765663,0.115742,0.464272,-0.304925,0.399029, 0.54279,
-0.909002,-0.10097,0.0170527,0.646134,0.090014,0.542789,
- 0.85237,-0.409983,0.464268,0.909002,-0.10097,0.0170527,
- 0.54573,0.399034,0.0170527,0.646134,0.090014,0.542789,
- 0.54573,0.399034,0.0170527,0.234332,0.440666,0.464272,
-0.646134,0.090014,0.542789,  0.1204,-0.909978,0.867707,
-0.483674,-0.409983,0.867704,-0.0420559,-0.409983, 1.01705,
-  0.1204,-0.909978,0.867707,0.646134,-0.90998,0.542789,
-0.483674,-0.409983,0.867704,0.646134,-0.90998,0.542789,
- 0.85237,-0.409983,0.464268,0.483674,-0.409983,0.867704,
--0.467379,-0.718994,0.867707,  0.1204,-0.909978,0.867707,
--0.0420559,-0.409983, 1.01705,-0.467379,-0.718994,0.867707,
--0.304925,-1.21899, 0.54279,  0.1204,-0.909978,0.867707,
--0.304925,-1.21899, 0.54279,0.234332,-1.26063,0.464272,
-  0.1204,-0.909978,0.867707,-0.467379,-0.100972,0.867707,
--0.467379,-0.718994,0.867707,-0.0420559,-0.409983, 1.01705,
--0.467379,-0.100972,0.867707,-0.892704,-0.409983,0.542789,
--0.467379,-0.718994,0.867707,-0.892704,-0.409983,0.542789,
--0.765663,-0.935708,0.464272,-0.467379,-0.718994,0.867707,
-  0.1204,0.0900123,0.867707,-0.467379,-0.100972,0.867707,
--0.0420559,-0.409983, 1.01705,  0.1204,0.0900123,0.867707,
--0.304925,0.399029, 0.54279,-0.467379,-0.100972,0.867707,
--0.304925,0.399029, 0.54279,-0.765663,0.115742,0.464272,
--0.467379,-0.100972,0.867707,0.483674,-0.409983,0.867704,
-  0.1204,0.0900123,0.867707,-0.0420559,-0.409983, 1.01705,
-0.483674,-0.409983,0.867704,0.646134,0.090014,0.542789,
-  0.1204,0.0900123,0.867707,0.646134,0.090014,0.542789,
-0.234332,0.440666,0.464272,  0.1204,0.0900123,0.867707])},
-localToParent:new engine.Mat4(1.0,0.0,0.0,0.0, 0.0,1.0,0.0,0.0, 0.0,0.0,1.0,0.0, 0.0,0.0,0.0,1.0),
-localToWorld:new engine.Mat4(1.0,0.0,0.0,0.0, 0.0,1.0,0.0,0.0, 0.0,0.0,1.0,0.0, 0.0,0.0,0.0,1.0),
-verts3:new Float32Array([
--0.436157,0.436157,       0,0.436157,0.436157,       0,
-0.436157,-0.436157,       0,0.527605,0.221583,  1.4206,
--0.344709,0.221583,  1.4206,-0.545841,0.302879, 3.29172,
--0.436157,0.436157,       0,-0.344709,0.221583,  1.4206,
-0.527605,0.221583,  1.4206,0.436157,0.436157,       0,
-0.527605,0.221583,  1.4206,0.527605,-0.650731,  1.4206,
--0.436157,-0.436157,       0,0.436157,-0.436157,       0,
-0.527605,-0.650731,  1.4206,-0.436157,0.436157,       0,
--0.436157,-0.436157,       0,-0.344709,-0.650731,  1.4206,
-0.167231,0.302879, 3.29172,-0.545841,0.302879, 3.29172,
--0.652262,0.0620775, 5.04641,0.527605,-0.650731,  1.4206,
-0.527605,0.221583,  1.4206,0.167231,0.302879, 3.29172,
-0.527605,-0.650731,  1.4206,0.167231,-0.410192, 3.29172,
--0.545841,-0.410192, 3.29172,-0.344709,-0.650731,  1.4206,
--0.545841,-0.410192, 3.29172,-0.545841,0.302879, 3.29172,
--0.652262,-0.465773, 5.04641,-0.124411,-0.465773, 5.04641,
--0.124411,0.0620775, 5.04641,0.167231,0.302879, 3.29172,
--0.124411,0.0620775, 5.04641,-0.124411,-0.465773, 5.04641,
-0.167231,-0.410192, 3.29172,-0.124411,-0.465773, 5.04641,
--0.652262,-0.465773, 5.04641,-0.545841,0.302879, 3.29172,
--0.545841,-0.410192, 3.29172,-0.652262,-0.465773, 5.04641,
--0.222208, 0.27102, 3.45232,0.0223005,0.157602, 3.67058,
--0.197908,-0.0804598, 3.79356,-0.184727,0.454034, 4.11431,
--0.429235,0.567452, 3.89604,-0.700188, 1.09902, 4.34872,
--0.222208, 0.27102, 3.45232,-0.429235,0.567452, 3.89604,
--0.184727,0.454034, 4.11431,0.0223005,0.157602, 3.67058,
--0.184727,0.454034, 4.11431,-0.404936,0.215972, 4.23729,
--0.442416,0.0329587, 3.57529,-0.197908,-0.0804598, 3.79356,
--0.404936,0.215972, 4.23729,-0.222208, 0.27102, 3.45232,
--0.442416,0.0329587, 3.57529,-0.649444,0.329391, 4.01902,
--0.500315, 1.00631, 4.52714,-0.700188, 1.09902, 4.34872,
--1.01128,  1.5003, 4.83849,-0.404936,0.215972, 4.23729,
--0.184727,0.454034, 4.11431,-0.500315, 1.00631, 4.52714,
--0.404936,0.215972, 4.23729,-0.680324,0.811703, 4.62767,
--0.880197,0.904417, 4.44925,-0.649444,0.329391, 4.01902,
--0.880197,0.904417, 4.44925,-0.700188, 1.09902, 4.34872,
--0.996572, 1.28762, 5.04498,-0.86332, 1.43167, 4.97057,
--1.01128,  1.5003, 4.83849,-0.500315, 1.00631, 4.52714,
--0.86332, 1.43167, 4.97057,-0.996572, 1.28762, 5.04498,
--0.680324,0.811703, 4.62767,-0.996572, 1.28762, 5.04498,
--1.14453, 1.35625, 4.91291,-0.700188, 1.09902, 4.34872,
--0.880197,0.904417, 4.44925,-1.14453, 1.35625, 4.91291,
--0.259423,0.115451, 2.51662,0.107414,0.194804, 2.25425,
-0.193546, -0.1921, 2.13339,0.264654,-0.0550337, 3.06845,
- 1.28125,-0.321902, 3.94289, 1.58112,-0.206557, 3.72842,
--0.259423,0.115451, 2.51662,0.264654,-0.0550337, 3.06845,
-0.631492,0.0860705, 2.80609,0.107414,0.194804, 2.25425,
-0.631492,0.0860705, 2.80609,0.717624,-0.362584, 2.68522,
--0.173291,-0.333204, 2.39576,0.193546, -0.1921, 2.13339,
-0.717624,-0.362584, 2.68522,-0.259423,0.115451, 2.51662,
--0.173291,-0.333204, 2.39576,0.350786,-0.503688, 2.94759,
- 1.58112,-0.206557, 3.72842, 1.28125,-0.321902, 3.94289,
- 1.48634,-0.818244, 4.71503,0.631492,0.0860705, 2.80609,
- 1.58112,-0.206557, 3.72842, 1.65153,-0.573309, 3.62962,
-0.350786,-0.503688, 2.94759,0.717624,-0.362584, 2.68522,
- 1.65153,-0.573309, 3.62962,0.264654,-0.0550337, 3.06845,
-0.350786,-0.503688, 2.94759, 1.35166,-0.688654, 3.84409,
- 1.53846,-1.08973,  4.6419, 1.76044,-1.00435, 4.48313,
- 1.70832,-0.73286, 4.55627, 1.58112,-0.206557, 3.72842,
- 1.70832,-0.73286, 4.55627, 1.76044,-1.00435, 4.48313,
- 1.65153,-0.573309, 3.62962, 1.76044,-1.00435, 4.48313,
- 1.53846,-1.08973,  4.6419, 1.28125,-0.321902, 3.94289,
- 1.35166,-0.688654, 3.84409, 1.53846,-1.08973,  4.6419,
--0.436157,-0.436157,       0,-0.436157,0.436157,       0,
-0.436157,-0.436157,       0,0.167231,0.302879, 3.29172,
-0.527605,0.221583,  1.4206,-0.545841,0.302879, 3.29172,
-0.436157,0.436157,       0,-0.436157,0.436157,       0,
-0.527605,0.221583,  1.4206,0.436157,-0.436157,       0,
-0.436157,0.436157,       0,0.527605,-0.650731,  1.4206,
--0.344709,-0.650731,  1.4206,-0.436157,-0.436157,       0,
-0.527605,-0.650731,  1.4206,-0.344709,0.221583,  1.4206,
--0.436157,0.436157,       0,-0.344709,-0.650731,  1.4206,
--0.124411,0.0620775, 5.04641,0.167231,0.302879, 3.29172,
--0.652262,0.0620775, 5.04641,0.167231,-0.410192, 3.29172,
-0.527605,-0.650731,  1.4206,0.167231,0.302879, 3.29172,
--0.344709,-0.650731,  1.4206,0.527605,-0.650731,  1.4206,
--0.545841,-0.410192, 3.29172,-0.344709,0.221583,  1.4206,
--0.344709,-0.650731,  1.4206,-0.545841,0.302879, 3.29172,
--0.652262,0.0620775, 5.04641,-0.652262,-0.465773, 5.04641,
--0.124411,0.0620775, 5.04641,0.167231,-0.410192, 3.29172,
-0.167231,0.302879, 3.29172,-0.124411,-0.465773, 5.04641,
--0.545841,-0.410192, 3.29172,0.167231,-0.410192, 3.29172,
--0.652262,-0.465773, 5.04641,-0.652262,0.0620775, 5.04641,
--0.545841,0.302879, 3.29172,-0.652262,-0.465773, 5.04641,
--0.442416,0.0329587, 3.57529,-0.222208, 0.27102, 3.45232,
--0.197908,-0.0804598, 3.79356,-0.500315, 1.00631, 4.52714,
--0.184727,0.454034, 4.11431,-0.700188, 1.09902, 4.34872,
-0.0223005,0.157602, 3.67058,-0.222208, 0.27102, 3.45232,
--0.184727,0.454034, 4.11431,-0.197908,-0.0804598, 3.79356,
-0.0223005,0.157602, 3.67058,-0.404936,0.215972, 4.23729,
--0.649444,0.329391, 4.01902,-0.442416,0.0329587, 3.57529,
--0.404936,0.215972, 4.23729,-0.429235,0.567452, 3.89604,
--0.222208, 0.27102, 3.45232,-0.649444,0.329391, 4.01902,
--0.86332, 1.43167, 4.97057,-0.500315, 1.00631, 4.52714,
--1.01128,  1.5003, 4.83849,-0.680324,0.811703, 4.62767,
--0.404936,0.215972, 4.23729,-0.500315, 1.00631, 4.52714,
--0.649444,0.329391, 4.01902,-0.404936,0.215972, 4.23729,
--0.880197,0.904417, 4.44925,-0.429235,0.567452, 3.89604,
--0.649444,0.329391, 4.01902,-0.700188, 1.09902, 4.34872,
--1.14453, 1.35625, 4.91291,-0.996572, 1.28762, 5.04498,
--1.01128,  1.5003, 4.83849,-0.680324,0.811703, 4.62767,
--0.500315, 1.00631, 4.52714,-0.996572, 1.28762, 5.04498,
--0.880197,0.904417, 4.44925,-0.680324,0.811703, 4.62767,
--1.14453, 1.35625, 4.91291,-1.01128,  1.5003, 4.83849,
--0.700188, 1.09902, 4.34872,-1.14453, 1.35625, 4.91291,
--0.173291,-0.333204, 2.39576,-0.259423,0.115451, 2.51662,
-0.193546, -0.1921, 2.13339,0.631492,0.0860705, 2.80609,
-0.264654,-0.0550337, 3.06845, 1.58112,-0.206557, 3.72842,
-0.107414,0.194804, 2.25425,-0.259423,0.115451, 2.51662,
-0.631492,0.0860705, 2.80609,0.193546, -0.1921, 2.13339,
-0.107414,0.194804, 2.25425,0.717624,-0.362584, 2.68522,
-0.350786,-0.503688, 2.94759,-0.173291,-0.333204, 2.39576,
-0.717624,-0.362584, 2.68522,0.264654,-0.0550337, 3.06845,
--0.259423,0.115451, 2.51662,0.350786,-0.503688, 2.94759,
- 1.70832,-0.73286, 4.55627, 1.58112,-0.206557, 3.72842,
- 1.48634,-0.818244, 4.71503,0.717624,-0.362584, 2.68522,
-0.631492,0.0860705, 2.80609, 1.65153,-0.573309, 3.62962,
- 1.35166,-0.688654, 3.84409,0.350786,-0.503688, 2.94759,
- 1.65153,-0.573309, 3.62962, 1.28125,-0.321902, 3.94289,
-0.264654,-0.0550337, 3.06845, 1.35166,-0.688654, 3.84409,
- 1.48634,-0.818244, 4.71503, 1.53846,-1.08973,  4.6419,
- 1.70832,-0.73286, 4.55627, 1.65153,-0.573309, 3.62962,
- 1.58112,-0.206557, 3.72842, 1.76044,-1.00435, 4.48313,
- 1.35166,-0.688654, 3.84409, 1.65153,-0.573309, 3.62962,
- 1.53846,-1.08973,  4.6419, 1.48634,-0.818244, 4.71503,
- 1.28125,-0.321902, 3.94289, 1.53846,-1.08973,  4.6419])}};
 window.music = {};
-music.gymnopedie = function(synth) {
-return T("mml", {mml:["t60 l4 v6 q2 o3 [ [g < b0<d0f+2>> d <a0<c+0f+2>>]8 f+ <a0<c+0f+2>>> b<<b0<d0f+2>> e<g0b2> e<b0<d0g2>> d<f0a0<d2>> >a<<a0<c0e2>> d<g0b0<e2>> d<d0g0b0<e2>> d<c0e0a0<d2>> d<c0f+0a0<d2>> d<a0<c0f2>> d<a0<c0e2>> d<d0g0b0<e2>> d<c0e0a0<d2>> d<c0f+0a0<d2>> | e<b0<e0g2>> f+<a0<c+0f+2>>> b<<b0<d0f+2>> e<<c+0e0a2>> e<a0<c+0f+0a2>> eb0<a0<d>e0b0<d0g>> a0<g2.> d0a0<d2.> ] e<b0<e0g2>> e<a0<d0f0a2>> e<a0<c0f2>> e<<c0e0a2>> e<a0<c0f0a2>> eb0<a0<d>e0b0<d0g>> a0<g2.> d0a0<d2.>","  t60 v14 l4 o6 [ r2. r2. r2. r2. rf+a gf+c+ >b<c+d >a2. f+2.& f+2.& f+2.& f+2.< rf+a gf+c+ >b<c+d >a2.< c+2. f+2. >e2.&e2.&e2. ab<c ed>b< dc>b< d2.& d2d efg acd ed>b <d2.& d2d | g2. f+2.> bab< c+de c+de> f+2. c0e0a0<c2.> d0f+0a0<d2. ] g2. f2.> b<cf edc edc> f2. c0e0a0<c2.> d0f0a0<d2."," "]}, synth.in).set({buddies:synth.out});
-}
 music.khoomii = (function(exports) {
 // Example from http://mohayonao.github.io/timbre.js/khoomii.html
 
@@ -2370,8 +1545,235 @@ exports = function(synth) {
 
 return exports;
 })({});
+music.gymnopedie = function(synth) {
+return T("mml", {mml:["t60 l4 v6 q2 o3 [ [g < b0<d0f+2>> d <a0<c+0f+2>>]8 f+ <a0<c+0f+2>>> b<<b0<d0f+2>> e<g0b2> e<b0<d0g2>> d<f0a0<d2>> >a<<a0<c0e2>> d<g0b0<e2>> d<d0g0b0<e2>> d<c0e0a0<d2>> d<c0f+0a0<d2>> d<a0<c0f2>> d<a0<c0e2>> d<d0g0b0<e2>> d<c0e0a0<d2>> d<c0f+0a0<d2>> | e<b0<e0g2>> f+<a0<c+0f+2>>> b<<b0<d0f+2>> e<<c+0e0a2>> e<a0<c+0f+0a2>> eb0<a0<d>e0b0<d0g>> a0<g2.> d0a0<d2.> ] e<b0<e0g2>> e<a0<d0f0a2>> e<a0<c0f2>> e<<c0e0a2>> e<a0<c0f0a2>> eb0<a0<d>e0b0<d0g>> a0<g2.> d0a0<d2.>","  t60 v14 l4 o6 [ r2. r2. r2. r2. rf+a gf+c+ >b<c+d >a2. f+2.& f+2.& f+2.& f+2.< rf+a gf+c+ >b<c+d >a2.< c+2. f+2. >e2.&e2.&e2. ab<c ed>b< dc>b< d2.& d2d efg acd ed>b <d2.& d2d | g2. f+2.> bab< c+de c+de> f+2. c0e0a0<c2.> d0f+0a0<d2. ] g2. f2.> b<cf edc edc> f2. c0e0a0<c2.> d0f0a0<d2."," "]}, synth.in).set({buddies:synth.out});
+}
+window.meshes = {};
+window.meshes.tiles = {
+empty:{
+colors4:new Uint8Array([98, 98, 98, 255, 101, 101, 101, 255, 83, 83, 83, 255, 81, 81, 81, 255, 98, 98, 98, 255, 83, 83, 83, 255]),
+emit:engine.emitMesh,
+localToParent:new engine.Mat4(1.0,0.0,0.0,0.0, 0.0,1.0,0.0,0.0, 0.0,0.0,1.0,0.0, -3.0,0.0,0.0,1.0),
+localToWorld:new engine.Mat4(1.0,0.0,0.0,0.0, 0.0,1.0,0.0,0.0, 0.0,0.0,1.0,0.0, -3.0,0.0,0.0,1.0),
+verts3:new Float32Array([
+       1,      -1,       0,       1,       1,       0,
+      -1,       1,       0,      -1,      -1,       0,
+       1,      -1,       0,      -1,       1,       0])},
+path_end:{
+colors4:new Uint8Array([110, 110, 110, 255, 102, 102, 102, 255, 94, 94, 94, 255, 102, 102, 102, 255, 95, 95, 95, 255, 94, 94, 94, 255, 101, 101, 101, 255, 110, 110, 110, 255, 94, 94, 94, 255, 94, 94, 94, 255, 102, 102, 102, 255, 94, 94, 94, 255]),
+emit:engine.emitMesh,
+localToParent:new engine.Mat4(1.0,0.0,0.0,0.0, 0.0,1.0,0.0,0.0, 0.0,0.0,1.0,0.0, 0.0,6.0,0.0,1.0),
+localToWorld:new engine.Mat4(1.0,0.0,0.0,0.0, 0.0,1.0,0.0,0.0, 0.0,0.0,1.0,0.0, 0.0,6.0,0.0,1.0),
+verts3:new Float32Array([
+0.594706,      -1,    0.15,0.594706,-0.0127025,    0.15,
+-0.594706,-0.0127025,    0.15,0.594706,-0.0127025,    0.15,
+0.0823517,0.496704,    0.15,-0.0823517,0.496704,    0.15,
+-0.594706,      -1,    0.15,0.594706,      -1,    0.15,
+-0.594706,-0.0127025,    0.15,-0.594706,-0.0127025,    0.15,
+0.594706,-0.0127025,    0.15,-0.0823517,0.496704,    0.15])},
+path_start:{
+colors4:new Uint8Array([120, 120, 120, 255, 117, 117, 117, 255, 107, 107, 107, 255, 109, 109, 109, 255, 109, 109, 109, 255, 122, 122, 122, 255, 109, 109, 109, 255, 112, 112, 112, 255, 127, 127, 127, 255, 112, 112, 112, 255, 115, 115, 115, 255, 126, 126, 126, 255, 109, 109, 109, 255, 120, 120, 120, 255, 107, 107, 107, 255, 120, 120, 120, 255, 109, 109, 109, 255, 122, 122, 122, 255, 122, 122, 122, 255, 109, 109, 109, 255, 127, 127, 127, 255, 127, 127, 127, 255, 112, 112, 112, 255, 126, 126, 126, 255]),
+emit:engine.emitMesh,
+localToParent:new engine.Mat4(1.0,0.0,0.0,0.0, 0.0,1.0,0.0,0.0, 0.0,0.0,1.0,0.0, 0.0,3.0,0.0,1.0),
+localToWorld:new engine.Mat4(1.0,0.0,0.0,0.0, 0.0,1.0,0.0,0.0, 0.0,0.0,1.0,0.0, 0.0,3.0,0.0,1.0),
+verts3:new Float32Array([
+0.594706, 0.62284,    0.15,0.594706,       1,    0.15,
+-0.594706,       1,    0.15,-0.594706, 0.62284,    0.15,
+-0.749227,0.382507,    0.15,0.749227,0.382507,    0.15,
+-0.749227,0.382507,    0.15,-0.749227,-0.577635,    0.15,
+0.749227,-0.577635,    0.15,-0.749227,-0.577635,    0.15,
+-0.574866,-0.746794,    0.15,0.574866,-0.746794,    0.15,
+-0.594706, 0.62284,    0.15,0.594706, 0.62284,    0.15,
+-0.594706,       1,    0.15,0.594706, 0.62284,    0.15,
+-0.594706, 0.62284,    0.15,0.749227,0.382507,    0.15,
+0.749227,0.382507,    0.15,-0.749227,0.382507,    0.15,
+0.749227,-0.577635,    0.15,0.749227,-0.577635,    0.15,
+-0.749227,-0.577635,    0.15,0.574866,-0.746794,    0.15])},
+path_straight:{
+colors4:new Uint8Array([123, 123, 123, 255, 129, 129, 129, 255, 116, 116, 116, 255, 112, 112, 112, 255, 123, 123, 123, 255, 116, 116, 116, 255]),
+emit:engine.emitMesh,
+localToParent:new engine.Mat4(1.0,0.0,0.0,0.0, 0.0,1.0,0.0,0.0, 0.0,0.0,1.0,0.0, 0.0,0.0,0.0,1.0),
+localToWorld:new engine.Mat4(1.0,0.0,0.0,0.0, 0.0,1.0,0.0,0.0, 0.0,0.0,1.0,0.0, 0.0,0.0,0.0,1.0),
+verts3:new Float32Array([
+0.594706,      -1,    0.15,0.594706,       1,    0.15,
+-0.594706,       1,    0.15,-0.594706,      -1,    0.15,
+0.594706,      -1,    0.15,-0.594706,       1,    0.15])},
+pillar:{
+colors4:new Uint8Array([0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 129, 129, 129, 255, 102, 102, 102, 255, 96, 96, 96, 255, 43, 43, 43, 255, 34, 34, 34, 255, 42, 42, 42, 255, 84, 84, 84, 255, 67, 67, 67, 255, 71, 71, 71, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0, 255, 120, 120, 120, 255, 129, 129, 129, 255, 96, 96, 96, 255, 56, 56, 56, 255, 43, 43, 43, 255, 42, 42, 42, 255, 91, 91, 91, 255, 84, 84, 84, 255, 71, 71, 71, 255]),
+emit:engine.emitMesh,
+localToParent:new engine.Mat4(1.0,0.0,0.0,0.0, 0.0,1.0,0.0,0.0, 0.0,0.0,1.0,0.0, -3.0,3.0,0.0,1.0),
+localToWorld:new engine.Mat4(1.0,0.0,0.0,0.0, 0.0,1.0,0.0,0.0, 0.0,0.0,1.0,0.0, -3.0,3.0,0.0,1.0),
+verts3:new Float32Array([
+    -0.9,     0.9,       3,    -0.9,     0.9,       0,
+    -0.9,    -0.9,       0,     0.9,     0.9,       3,
+     0.9,     0.9,       0,    -0.9,     0.9,       0,
+     0.9,    -0.9,       3,     0.9,    -0.9,       0,
+     0.9,     0.9,       0,    -0.9,    -0.9,       3,
+    -0.9,    -0.9,       0,     0.9,    -0.9,       0,
+     0.9,     0.9,       3,    -0.9,     0.9,       3,
+    -0.9,    -0.9,       3,    -0.9,    -0.9,       3,
+    -0.9,     0.9,       3,    -0.9,    -0.9,       0,
+    -0.9,     0.9,       3,     0.9,     0.9,       3,
+    -0.9,     0.9,       0,     0.9,     0.9,       3,
+     0.9,    -0.9,       3,     0.9,     0.9,       0,
+     0.9,    -0.9,       3,    -0.9,    -0.9,       3,
+     0.9,    -0.9,       0,     0.9,    -0.9,       3,
+     0.9,     0.9,       3,    -0.9,    -0.9,       3])}};
+window.meshes.shapes = {
+sphere:{
+colors4:new Uint8Array([21, 37, 6, 255, 21, 37, 6, 255, 21, 37, 6, 255, 60, 93, 26, 255, 60, 93, 26, 255, 60, 93, 26, 255, 21, 37, 6, 255, 21, 37, 6, 255, 21, 37, 6, 255, 21, 37, 6, 255, 21, 37, 6, 255, 21, 37, 6, 255, 21, 37, 6, 255, 21, 37, 6, 255, 21, 37, 6, 255, 85, 128, 39, 255, 85, 128, 39, 255, 85, 128, 39, 255, 85, 128, 39, 255, 85, 128, 39, 255, 85, 128, 39, 255, 85, 128, 39, 255, 85, 128, 39, 255, 85, 128, 39, 255, 85, 128, 39, 255, 85, 128, 39, 255, 85, 128, 39, 255, 85, 128, 39, 255, 85, 128, 39, 255, 85, 128, 39, 255, 96, 144, 45, 255, 96, 144, 45, 255, 96, 144, 45, 255, 96, 144, 45, 255, 96, 144, 45, 255, 96, 144, 45, 255, 96, 144, 45, 255, 96, 144, 45, 255, 96, 144, 45, 255, 96, 144, 45, 255, 96, 144, 45, 255, 96, 144, 45, 255, 96, 144, 45, 255, 96, 144, 45, 255, 96, 144, 45, 255, 130, 193, 63, 255, 130, 193, 63, 255, 130, 193, 63, 255, 130, 193, 63, 255, 130, 193, 63, 255, 130, 193, 63, 255, 130, 193, 63, 255, 130, 193, 63, 255, 130, 193, 63, 255, 130, 193, 63, 255, 130, 193, 63, 255, 130, 193, 63, 255, 130, 193, 63, 255, 130, 193, 63, 255, 130, 193, 63, 255, 60, 93, 26, 255, 60, 93, 26, 255, 60, 93, 26, 255, 46, 72, 18, 255, 46, 72, 18, 255, 46, 72, 18, 255, 60, 93, 26, 255, 60, 93, 26, 255, 60, 93, 26, 255, 60, 93, 26, 255, 60, 93, 26, 255, 60, 93, 26, 255, 46, 72, 18, 255, 46, 72, 18, 255, 46, 72, 18, 255, 21, 37, 6, 255, 21, 37, 6, 255, 21, 37, 6, 255, 60, 93, 26, 255, 60, 93, 26, 255, 60, 93, 26, 255, 46, 72, 18, 255, 46, 72, 18, 255, 46, 72, 18, 255, 60, 93, 26, 255, 60, 93, 26, 255, 60, 93, 26, 255, 60, 93, 26, 255, 60, 93, 26, 255, 60, 93, 26, 255, 46, 72, 18, 255, 46, 72, 18, 255, 46, 72, 18, 255, 60, 93, 26, 255, 60, 93, 26, 255, 60, 93, 26, 255, 60, 93, 26, 255, 60, 93, 26, 255, 60, 93, 26, 255, 46, 72, 18, 255, 46, 72, 18, 255, 46, 72, 18, 255, 60, 93, 26, 255, 60, 93, 26, 255, 60, 93, 26, 255, 109, 162, 51, 255, 109, 162, 51, 255, 109, 162, 51, 255, 93, 139, 43, 255, 93, 139, 43, 255, 93, 139, 43, 255, 85, 128, 39, 255, 85, 128, 39, 255, 85, 128, 39, 255, 109, 162, 51, 255, 109, 162, 51, 255, 109, 162, 51, 255, 93, 139, 43, 255, 93, 139, 43, 255, 93, 139, 43, 255, 85, 128, 39, 255, 85, 128, 39, 255, 85, 128, 39, 255, 109, 162, 51, 255, 109, 162, 51, 255, 109, 162, 51, 255, 93, 139, 43, 255, 93, 139, 43, 255, 93, 139, 43, 255, 85, 128, 39, 255, 85, 128, 39, 255, 85, 128, 39, 255, 109, 162, 51, 255, 109, 162, 51, 255, 109, 162, 51, 255, 93, 139, 43, 255, 93, 139, 43, 255, 93, 139, 43, 255, 85, 128, 39, 255, 85, 128, 39, 255, 85, 128, 39, 255, 109, 162, 51, 255, 109, 162, 51, 255, 109, 162, 51, 255, 93, 139, 43, 255, 93, 139, 43, 255, 93, 139, 43, 255, 85, 128, 39, 255, 85, 128, 39, 255, 85, 128, 39, 255, 117, 174, 56, 255, 117, 174, 56, 255, 117, 174, 56, 255, 111, 166, 53, 255, 111, 166, 53, 255, 111, 166, 53, 255, 117, 174, 56, 255, 117, 174, 56, 255, 117, 174, 56, 255, 117, 174, 56, 255, 117, 174, 56, 255, 117, 174, 56, 255, 111, 166, 53, 255, 111, 166, 53, 255, 111, 166, 53, 255, 117, 174, 56, 255, 117, 174, 56, 255, 117, 174, 56, 255, 117, 174, 56, 255, 117, 174, 56, 255, 117, 174, 56, 255, 111, 166, 53, 255, 111, 166, 53, 255, 111, 166, 53, 255, 117, 174, 56, 255, 117, 174, 56, 255, 117, 174, 56, 255, 117, 174, 56, 255, 117, 174, 56, 255, 117, 174, 56, 255, 111, 166, 53, 255, 111, 166, 53, 255, 111, 166, 53, 255, 117, 174, 56, 255, 117, 174, 56, 255, 117, 174, 56, 255, 117, 174, 56, 255, 117, 174, 56, 255, 117, 174, 56, 255, 111, 166, 53, 255, 111, 166, 53, 255, 111, 166, 53, 255, 117, 174, 56, 255, 117, 174, 56, 255, 117, 174, 56, 255, 140, 207, 68, 255, 140, 207, 68, 255, 140, 207, 68, 255, 135, 199, 65, 255, 135, 199, 65, 255, 135, 199, 65, 255, 130, 193, 63, 255, 130, 193, 63, 255, 130, 193, 63, 255, 140, 207, 68, 255, 140, 207, 68, 255, 140, 207, 68, 255, 135, 199, 65, 255, 135, 199, 65, 255, 135, 199, 65, 255, 130, 193, 63, 255, 130, 193, 63, 255, 130, 193, 63, 255, 140, 207, 68, 255, 140, 207, 68, 255, 140, 207, 68, 255, 135, 199, 65, 255, 135, 199, 65, 255, 135, 199, 65, 255, 130, 193, 63, 255, 130, 193, 63, 255, 130, 193, 63, 255, 140, 207, 68, 255, 140, 207, 68, 255, 140, 207, 68, 255, 135, 199, 65, 255, 135, 199, 65, 255, 135, 199, 65, 255, 130, 193, 63, 255, 130, 193, 63, 255, 130, 193, 63, 255, 140, 207, 68, 255, 140, 207, 68, 255, 140, 207, 68, 255, 135, 199, 65, 255, 135, 199, 65, 255, 135, 199, 65, 255, 130, 193, 63, 255, 130, 193, 63, 255, 130, 193, 63, 255]),
+emit:engine.emitMesh,
+localToParent:new engine.Mat4(1.0,0.0,0.0,0.0, 0.0,1.0,0.0,0.0, 0.0,0.0,1.0,0.0, 0.0,0.0,0.0,1.0),
+localToWorld:new engine.Mat4(1.0,0.0,0.0,0.0, 0.0,1.0,0.0,0.0, 0.0,0.0,1.0,0.0, 0.0,0.0,0.0,1.0),
+verts3:new Float32Array([
+       0,       0,      -1,0.425323,-0.309011,-0.850654,
+-0.162456,-0.499995,-0.850654,0.723607,-0.525725,-0.44722,
+0.425323,-0.309011,-0.850654,0.850648,       0,-0.525736,
+       0,       0,      -1,-0.162456,-0.499995,-0.850654,
+-0.52573,       0,-0.850652,       0,       0,      -1,
+-0.52573,       0,-0.850652,-0.162456,0.499995,-0.850654,
+       0,       0,      -1,-0.162456,0.499995,-0.850654,
+0.425323,0.309011,-0.850654,0.723607,-0.525725,-0.44722,
+0.850648,       0,-0.525736,0.951058,-0.309013,       0,
+-0.276388,-0.850649,-0.44722,0.262869,-0.809012,-0.525738,
+       0,      -1,       0,-0.894426,       0,-0.447216,
+-0.688189,-0.499997,-0.525736,-0.951058,-0.309013,       0,
+-0.276388,0.850649,-0.44722,-0.688189,0.499997,-0.525736,
+-0.587786,0.809017,       0,0.723607,0.525725,-0.44722,
+0.262869,0.809012,-0.525738,0.587786,0.809017,       0,
+0.723607,-0.525725,-0.44722,0.951058,-0.309013,       0,
+0.587786,-0.809017,       0,-0.276388,-0.850649,-0.44722,
+       0,      -1,       0,-0.587786,-0.809017,       0,
+-0.894426,       0,-0.447216,-0.951058,-0.309013,       0,
+-0.951058,0.309013,       0,-0.276388,0.850649,-0.44722,
+-0.587786,0.809017,       0,       0,       1,       0,
+0.723607,0.525725,-0.44722,0.587786,0.809017,       0,
+0.951058,0.309013,       0,0.276388,-0.850649, 0.44722,
+0.688189,-0.499997,0.525736,0.162456,-0.499995,0.850654,
+-0.723607,-0.525725, 0.44722,-0.262869,-0.809012,0.525738,
+-0.425323,-0.309011,0.850654,-0.723607,0.525725, 0.44722,
+-0.850648,       0,0.525736,-0.425323,0.309011,0.850654,
+0.276388,0.850649, 0.44722,-0.262869,0.809012,0.525738,
+0.162456,0.499995,0.850654,0.894426,       0,0.447216,
+0.688189,0.499997,0.525736, 0.52573,       0,0.850652,
+-0.162456,-0.499995,-0.850654,0.262869,-0.809012,-0.525738,
+-0.276388,-0.850649,-0.44722,-0.162456,-0.499995,-0.850654,
+0.425323,-0.309011,-0.850654,0.262869,-0.809012,-0.525738,
+0.425323,-0.309011,-0.850654,0.723607,-0.525725,-0.44722,
+0.262869,-0.809012,-0.525738,0.850648,       0,-0.525736,
+0.425323,0.309011,-0.850654,0.723607,0.525725,-0.44722,
+0.850648,       0,-0.525736,0.425323,-0.309011,-0.850654,
+0.425323,0.309011,-0.850654,0.425323,-0.309011,-0.850654,
+       0,       0,      -1,0.425323,0.309011,-0.850654,
+-0.52573,       0,-0.850652,-0.688189,-0.499997,-0.525736,
+-0.894426,       0,-0.447216,-0.52573,       0,-0.850652,
+-0.162456,-0.499995,-0.850654,-0.688189,-0.499997,-0.525736,
+-0.162456,-0.499995,-0.850654,-0.276388,-0.850649,-0.44722,
+-0.688189,-0.499997,-0.525736,-0.162456,0.499995,-0.850654,
+-0.688189,0.499997,-0.525736,-0.276388,0.850649,-0.44722,
+-0.162456,0.499995,-0.850654,-0.52573,       0,-0.850652,
+-0.688189,0.499997,-0.525736,-0.52573,       0,-0.850652,
+-0.894426,       0,-0.447216,-0.688189,0.499997,-0.525736,
+0.425323,0.309011,-0.850654,0.262869,0.809012,-0.525738,
+0.723607,0.525725,-0.44722,0.425323,0.309011,-0.850654,
+-0.162456,0.499995,-0.850654,0.262869,0.809012,-0.525738,
+-0.162456,0.499995,-0.850654,-0.276388,0.850649,-0.44722,
+0.262869,0.809012,-0.525738,0.951058,-0.309013,       0,
+0.951058,0.309013,       0,0.894426,       0,0.447216,
+0.951058,-0.309013,       0,0.850648,       0,-0.525736,
+0.951058,0.309013,       0,0.850648,       0,-0.525736,
+0.723607,0.525725,-0.44722,0.951058,0.309013,       0,
+       0,      -1,       0,0.587786,-0.809017,       0,
+0.276388,-0.850649, 0.44722,       0,      -1,       0,
+0.262869,-0.809012,-0.525738,0.587786,-0.809017,       0,
+0.262869,-0.809012,-0.525738,0.723607,-0.525725,-0.44722,
+0.587786,-0.809017,       0,-0.951058,-0.309013,       0,
+-0.587786,-0.809017,       0,-0.723607,-0.525725, 0.44722,
+-0.951058,-0.309013,       0,-0.688189,-0.499997,-0.525736,
+-0.587786,-0.809017,       0,-0.688189,-0.499997,-0.525736,
+-0.276388,-0.850649,-0.44722,-0.587786,-0.809017,       0,
+-0.587786,0.809017,       0,-0.951058,0.309013,       0,
+-0.723607,0.525725, 0.44722,-0.587786,0.809017,       0,
+-0.688189,0.499997,-0.525736,-0.951058,0.309013,       0,
+-0.688189,0.499997,-0.525736,-0.894426,       0,-0.447216,
+-0.951058,0.309013,       0,0.587786,0.809017,       0,
+       0,       1,       0,0.276388,0.850649, 0.44722,
+0.587786,0.809017,       0,0.262869,0.809012,-0.525738,
+       0,       1,       0,0.262869,0.809012,-0.525738,
+-0.276388,0.850649,-0.44722,       0,       1,       0,
+0.587786,-0.809017,       0,0.688189,-0.499997,0.525736,
+0.276388,-0.850649, 0.44722,0.587786,-0.809017,       0,
+0.951058,-0.309013,       0,0.688189,-0.499997,0.525736,
+0.951058,-0.309013,       0,0.894426,       0,0.447216,
+0.688189,-0.499997,0.525736,-0.587786,-0.809017,       0,
+-0.262869,-0.809012,0.525738,-0.723607,-0.525725, 0.44722,
+-0.587786,-0.809017,       0,       0,      -1,       0,
+-0.262869,-0.809012,0.525738,       0,      -1,       0,
+0.276388,-0.850649, 0.44722,-0.262869,-0.809012,0.525738,
+-0.951058,0.309013,       0,-0.850648,       0,0.525736,
+-0.723607,0.525725, 0.44722,-0.951058,0.309013,       0,
+-0.951058,-0.309013,       0,-0.850648,       0,0.525736,
+-0.951058,-0.309013,       0,-0.723607,-0.525725, 0.44722,
+-0.850648,       0,0.525736,       0,       1,       0,
+-0.262869,0.809012,0.525738,0.276388,0.850649, 0.44722,
+       0,       1,       0,-0.587786,0.809017,       0,
+-0.262869,0.809012,0.525738,-0.587786,0.809017,       0,
+-0.723607,0.525725, 0.44722,-0.262869,0.809012,0.525738,
+0.951058,0.309013,       0,0.688189,0.499997,0.525736,
+0.894426,       0,0.447216,0.951058,0.309013,       0,
+0.587786,0.809017,       0,0.688189,0.499997,0.525736,
+0.587786,0.809017,       0,0.276388,0.850649, 0.44722,
+0.688189,0.499997,0.525736,0.162456,-0.499995,0.850654,
+ 0.52573,       0,0.850652,       0,       0,       1,
+0.162456,-0.499995,0.850654,0.688189,-0.499997,0.525736,
+ 0.52573,       0,0.850652,0.688189,-0.499997,0.525736,
+0.894426,       0,0.447216, 0.52573,       0,0.850652,
+-0.425323,-0.309011,0.850654,0.162456,-0.499995,0.850654,
+       0,       0,       1,-0.425323,-0.309011,0.850654,
+-0.262869,-0.809012,0.525738,0.162456,-0.499995,0.850654,
+-0.262869,-0.809012,0.525738,0.276388,-0.850649, 0.44722,
+0.162456,-0.499995,0.850654,-0.425323,0.309011,0.850654,
+-0.425323,-0.309011,0.850654,       0,       0,       1,
+-0.425323,0.309011,0.850654,-0.850648,       0,0.525736,
+-0.425323,-0.309011,0.850654,-0.850648,       0,0.525736,
+-0.723607,-0.525725, 0.44722,-0.425323,-0.309011,0.850654,
+0.162456,0.499995,0.850654,-0.425323,0.309011,0.850654,
+       0,       0,       1,0.162456,0.499995,0.850654,
+-0.262869,0.809012,0.525738,-0.425323,0.309011,0.850654,
+-0.262869,0.809012,0.525738,-0.723607,0.525725, 0.44722,
+-0.425323,0.309011,0.850654, 0.52573,       0,0.850652,
+0.162456,0.499995,0.850654,       0,       0,       1,
+ 0.52573,       0,0.850652,0.688189,0.499997,0.525736,
+0.162456,0.499995,0.850654,0.688189,0.499997,0.525736,
+0.276388,0.850649, 0.44722,0.162456,0.499995,0.850654])}};
 window.shaders = {};
 window.synths = {};
+synths.vowels = (function(exports) {
+// Example from http://mohayonao.github.io/timbre.js/khoomii.html
+
+var freq, synth, f1, f2, f3;
+
+freq = 174.61412048339844;
+freq = T("+.kr", freq, T("sin.kr", {freq:3, mul:0.8}));
+
+synth = T("saw", {freq:freq});
+
+f1 = T("bpf", {freq:T("param", {value: 700}), Q:9}, synth);
+f2 = T("bpf", {freq:T("param", {value:1200}), Q:9}, synth);
+f3 = T("bpf", {freq:T("param", {value:2900}), Q:9}, synth);
+synth = T("+", f1, f2, f3);
+synth = T("bpf", {freq:3200, Q:0.5}, synth);
+
+exports = {
+	in: synth,
+	out: synth,
+	f1: f1,
+	f2: f2,
+	f3: f3
+};
+
+return exports;
+})({});
 synths.bells = (function(exports) {
 // Example from http://mohayonao.github.io/timbre.js/satie.html
 
@@ -2441,32 +1843,6 @@ exports = {
 
 return exports;
 })({});
-synths.vowels = (function(exports) {
-// Example from http://mohayonao.github.io/timbre.js/khoomii.html
-
-var freq, synth, f1, f2, f3;
-
-freq = 174.61412048339844;
-freq = T("+.kr", freq, T("sin.kr", {freq:3, mul:0.8}));
-
-synth = T("saw", {freq:freq});
-
-f1 = T("bpf", {freq:T("param", {value: 700}), Q:9}, synth);
-f2 = T("bpf", {freq:T("param", {value:1200}), Q:9}, synth);
-f3 = T("bpf", {freq:T("param", {value:2900}), Q:9}, synth);
-synth = T("+", f1, f2, f3);
-synth = T("bpf", {freq:3200, Q:0.5}, synth);
-
-exports = {
-	in: synth,
-	out: synth,
-	f1: f1,
-	f2: f2,
-	f3: f3
-};
-
-return exports;
-})({});
 
 </script>
 <script id="shaders.solid.fs" type="x-shader/x-fragment">
@@ -2486,6 +1862,26 @@ varying vec4 vColor;
 
 void main() {
 	vColor = aColor;
+	gl_Position = uMVP * vec4(aVertex, 1.0);
+}
+</script>
+<script id="shaders.select.fs" type="x-shader/x-fragment">
+varying lowp vec4 vTag;
+
+void main() {
+	gl_FragColor = vTag;
+}
+</script>
+<script id="shaders.select.vs" type="x-shader/x-vertex">
+uniform mat4 uMVP;
+
+attribute vec3 aVertex;
+attribute vec4 aTag;
+
+varying vec4 vTag;
+
+void main() {
+	vTag = aTag;
 	gl_Position = uMVP * vec4(aVertex, 1.0);
 }
 </script>

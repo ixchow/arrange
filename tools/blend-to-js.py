@@ -23,7 +23,11 @@ def to_normalized_uint8(val):
 
 #Write a mesh with just position:
 def mesh_data(obj):
-	bpy.ops.object.mode_set(mode='OBJECT')
+	try:
+		bpy.ops.object.mode_set(mode='OBJECT')
+	except:
+		print("Ignoring error setting mode to object")
+		
 	obj.data = obj.data.copy() #"make single user" (?)
 	bpy.context.scene.layers = obj.layers
 	#First, triangulate the mesh:
@@ -32,6 +36,7 @@ def mesh_data(obj):
 	bpy.context.scene.objects.active = obj
 	bpy.ops.object.mode_set(mode='EDIT')
 	bpy.ops.mesh.select_all(action='SELECT')
+
 	#use_beauty went away in 2.70, now use:
 	bpy.ops.mesh.quads_convert_to_tris(quad_method='BEAUTY', ngon_method='BEAUTY')
 	bpy.ops.object.mode_set(mode='OBJECT')
@@ -110,6 +115,7 @@ def mesh_data(obj):
 
 	data['localToParent'] = matrix_to_Mat4(obj.matrix_local)
 	data['localToWorld'] = matrix_to_Mat4(obj.matrix_world)
+	data['emit'] = 'engine.emitMesh';
 
 	for v in verts:
 		data['verts3'].extend(v)
@@ -117,6 +123,8 @@ def mesh_data(obj):
 		data['colors4'].extend(c)
 
 	assert(len(data['verts3']) / 3 == len(data['colors4']) / 4)
+
+	data['colors4'] = 'new Uint8Array([' + ', '.join(map(str,data['colors4'])) + '])'
 
 	return data
 
