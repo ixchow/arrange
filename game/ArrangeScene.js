@@ -2,8 +2,6 @@ var Vec3 = engine.Vec3;
 var Mat4 = engine.Mat4;
 
 var Tile = function(params) {
-	this.verts2 = [-0.4,-0.4, -0.4,0.4, 0.4,0.4, 0.4,-0.4];
-	this.color = {r:1.0, g:0.0, b:1.0};
 	for (n in params) {
 		this[n] = params[n];
 	}
