@@ -217,9 +217,6 @@ ArrangeScene.prototype.checkCombined = function() {
 			});
 			conflict |= (needClear & fill);
 			if (conflict != 0) {
-				this.problems.push({
-					at:{x:x + this.combined.min.x, y:y+this.combined.min.y}
-				});
 				stack.forEach(function(s){
 					var conflicted = 0;
 					if (s.tile.fill) conflicted |= s.tile.fill & conflict;
@@ -357,6 +354,23 @@ ArrangeScene.prototype.checkCombined = function() {
 			return false;
 		});
 	}
+
+	//---------------------------------------
+	//Actually read out list of problems:
+	problems = this.problems;
+	this.combined.forEach(function(stack, idx){
+		var hasProblem = stack.some(function(s){
+			return s.hasProblem;
+		});
+		if (hasProblem) {
+			var at = {
+				x:(idx % combined.size.x) + combined.min.x,
+				y:((idx / combined.size.x) | 0) + combined.min.y
+			};
+			console.log(idx, at.x, at.y);
+			problems.push({at:at});
+		}
+	});
 
 };
 
