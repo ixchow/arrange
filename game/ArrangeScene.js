@@ -176,10 +176,58 @@ ArrangeScene.prototype.buildCombined = function() {
 		});
 	});
 
-	//TODO: check consistency
+	//Check consistency:
+	this.checkCombined();
 
 	//building combined changes the scene, so mark select as dirty:
 	this.selectDirty = true;
+};
+
+ArrangeScene.prototype.checkCombined = function() {
+	//clear problems lists:
+	this.problems = [];
+
+	this.fragments.forEach(function(f){
+		delete f.hasProblem;
+	});
+
+	//Check path consistency:
+	//TODO
+
+	//Check collision consistency:
+	for (var y = 0; y < this.combined.size.y; ++y) {
+		for (var x = 0; x < this.combined.size.x; ++x) {
+			var stack = this.combined[y * this.combined.size.x + x];
+
+			var fill = 0; //accumulate bits for filled area
+			var needClear = 0; //accumulate bits that must be clear
+			var conflict = 0; //accumulate bits where fills overlap
+			stack.forEach(function(s){
+				if (s.tile.fill) {
+					conflict |= (fill & s.tile.fill);
+					fill |= s.tile.fill;
+				}
+				if (s.tile.needClear) {
+					needClear |= s.tile.needClear;
+				}
+			});
+			conflict |= (needClear & fill);
+			if (conflict != 0) {
+				this.problems.push({
+					at:{x:x + this.combined.min.x, y:y+this.combined.min.y}
+				});
+				stack.forEach(function(s){
+					var conflicted = 0;
+					if (s.tile.fill) conflicted |= s.tile.fill & conflict;
+					if (s.tile.needClear) conflicted |= s.tile.needClear & conflict;
+					if (conflicted) {
+						s.fragment.hasProblem = true;
+					}
+				});
+			}
+		}
+	}
+
 };
 
 //These should probably get moved:
