@@ -53,7 +53,7 @@ function sfx_play() {
 	var decay = parseFloat(document.getElementById('decay').value);
 	var vib_freq = parseFloat(document.getElementById('vib_freq').value);
 	var vib_effect = parseFloat(document.getElementById('vib_effect').value);
-	engine.sfx(wave, start_freq, end_freq, attack, decay, vib_freq, vib_effect);
+	engine.sfx(wave, start_freq, end_freq, attack, decay, vib_freq, vib_effect).bang();
 }
 
 </script>

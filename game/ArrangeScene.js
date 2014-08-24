@@ -201,7 +201,14 @@ ArrangeScene.prototype.checkCombined = function() {
 	var combined = this.combined;
 	this.problems = game.problems.determineProblems(combined);
 	this.paths = game.paths.determinePaths(combined, this.problems);
+	this.solved = (this.paths[0].length > 10) && (this.problems.length == 0);
 };
+
+ArrangeScene.prototype.checkWin = function() {
+	if (this.solved) {
+		game.sfx.win();
+	}
+}
 
 //These should probably get moved:
 function lookAt(eye, target, up) {
@@ -517,6 +524,7 @@ ArrangeScene.prototype.mouse = function(x, y, isDown) {
 			this.dragInfo = null;
 		}
 		this.mouseDown = false;
+		this.checkWin();
 	}
 
 	//if we aren't dragging, adjust hover info:
@@ -540,7 +548,6 @@ ArrangeScene.prototype.mouse = function(x, y, isDown) {
 			};
 		}
 	}
-
 };
 
 ArrangeScene.prototype.debug_rot = function(n) {

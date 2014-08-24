@@ -8,12 +8,16 @@ exports = function(wave, start_freq, end_freq, attack, decay, vib_freq, vib_effe
 
 	var len = attack + decay;
 
+	var fp = T('param', {value: start_freq});
   var f = T('+', 
-		T('param', {value: start_freq}).expTo(end_freq, len + 'ms'),
+		fp,
 		T('sin', {freq: vib_freq, mul: vib_effect})
 	);
 	var n = T(wave, {freq: f});
 
 	var env   = T("adsr", {a: attack, d:decay, s:0, r:0}, n);
-	env.play().bang();
+	env.on('bang', function() {
+		fp.set({value: start_freq}).expTo(end_freq, len + 'ms');
+	});
+	return env.play();
 }
