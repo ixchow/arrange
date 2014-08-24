@@ -10,7 +10,7 @@ function supports_html5_storage() {
 }
 
 if (supports_html5_storage) {
-	isMuted = localStorage.getItem("mute");
+	isMuted = localStorage.getItem("mute") == 'true';
 }
 
 exports = {
