@@ -75,7 +75,7 @@ exports = {
 	Chair: new Tile({
 		mesh:'chair',
 		fill:o.low,
-		requires: { s: 'desk' }
+		requires: { n: 'desk' }
 	}),
 	HamsterCage: new Tile({
 		mesh:'hamster_cage',

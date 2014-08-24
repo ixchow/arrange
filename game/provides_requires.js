@@ -41,11 +41,14 @@ exports = {
 					var requires = s.tile.requires && s.tile.requires[d];
 					var provides = s.tile.provides && s.tile.provides[d];
 					if (!requires && !provides) return;
-					if (!connection_points[idx]) {
-						connection_points[idx] = {provides: {}, requires: {}, at: {x: x + combined.min.x, y: y + combined.min.y}};
+					if (!connection_points[new_idx]) {
+						connection_points[new_idx] = {provides: {}, requires: {}};
 					}
-					if (requires) connection_points[idx].requires[requires] = true;
-					if (provides) connection_points[idx].provides[provides] = true;
+					if (requires) {
+						connection_points[new_idx].requires[requires] = true;
+						connection_points[new_idx].at = {x: x + combined.min.x, y: y + combined.min.y};
+					}
+					if (provides) connection_points[new_idx].provides[provides] = true;
 				});
 			});
 		});
