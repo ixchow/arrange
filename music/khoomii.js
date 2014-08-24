@@ -17,6 +17,6 @@ exports = function(synth) {
 	  synth.f1.freq.linTo(f[0], 150);
 	  synth.f2.freq.linTo(f[1], 150);
 	  synth.f3.freq.linTo(f[2], 150);
-	}).set({buddies:synth.out});
+	});
 }
 

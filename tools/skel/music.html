@@ -38,6 +38,7 @@ a {
 </style>
 <script>
 function music_start() {
+	engine.music.init();
   var e = document.getElementById('synth');
   for (var s in window.synths) {
     var opt = document.createElement('option');
