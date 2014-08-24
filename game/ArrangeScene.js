@@ -65,6 +65,10 @@ var ArrangeScene = function(buildLevel, previousStoryState) {
 		up:new Vec3(0.0, 0.0, 1.0)
 	};
 
+	this.camera.target.x = this.combined.min.x + 0.5 * this.combined.size.x - 0.5;
+	this.camera.target.y = this.combined.min.y + 0.5 * this.combined.size.y - 0.5;
+	this.camera.eye = this.camera.target.plus(new Vec3(5.0, 5.0, 5.0));
+
 	this.mouse2d = null; //screen position of mouse, if we have it
 
 	this.mouseDown = false;
