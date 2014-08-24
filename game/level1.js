@@ -1,21 +1,30 @@
 exports = function() {
 	var tileMap = {
-		S: game.tiles.PathStart,
-		E: game.tiles.PathEnd,
-		P: game.tiles.Pillar,
-		'|': game.tiles.PathStraight
+		S: { r: 0, t: game.tiles.PathStart },
+		E: { r: 0, t: game.tiles.PathEnd },
+		P: { r: 0, t: game.tiles.Pillar },
+		'|': { r: 0, t: game.tiles.PathStraight },
+		'-': { r: 1, t: game.tiles.PathStraight },
+		'{': { r: 0, t: game.tiles.PathLeft },
+		'[': { r: 0, t: game.tiles.PathRight },
+		']': { r: 0, t: game.tiles.PathRight },
+		H: { r: 0, t: game.tiles.Pillar },
+		D: { r: 0, t: game.tiles.Pillar },
+		B: { r: 0, t: game.tiles.Pillar },
+		d: { r: 0, t: game.tiles.Pillar },
+		k: { r: 0, t: game.tiles.Pillar }
 	};
 	
 	var txt = "";
-	txt += ".. .. S1 P1 .. ..\n";
-	txt += ".. .. |1 P1 P1 ..\n";
-	txt += ".. |3 .. P1 P1 ..\n";
-	txt += ".. .. E2 P2 P2 ..\n";
-	txt += ".. .. P1 P1 P2 ..\n";
-	txt += ".. .. .. .. .. ..\n";
-	txt += ".. .. .. P3 .. ..\n";
-	txt += ".. .. P3 P3 P3 ..\n";
-	txt += ".. .. .. P3 .. ..\n";
+	txt += ".. .. B1 B1 B2 B2 .. .. ..\n";
+	txt += ".. .. D1 D1 D1 .. {4 -4 E.\n";
+	txt += "H. .. D1 D1 D1 .. |4 .. ..\n";
+	txt += "{. -. -. -. -. -. ]4 .. ..\n";
+	txt += "|. d. .. d3 .. d3 .. .. k.\n";
+	txt += "|. .. .. .. .. .. .. .. k.\n";
+	txt += "|. d. .. d2 .. d2 .. .. k.\n";
+	txt += "[. S. .. .. .. .. .. .. k.\n";
+	txt += ".. .. .. .. .. .. .. .. ..\n";
 	
 	var groups = {};
 	var y = -1;
@@ -32,7 +41,11 @@ exports = function() {
 				groups[t[1]].at = { x: x, y: y };
 			}
 			var pt = { x: x - groups[t[1]].at.x, y: y - groups[t[1]].at.y };
-			groups[t[1]].tiles.push({ tile: tileMap[t[0]], r: 0, at: pt});
+			var tile = tileMap[t[0]];
+			if (!tile) {
+				throw new Error(t);
+			}
+			groups[t[1]].tiles.push({ tile: tile.t, r: tile.r, at: pt});
 		});
 	});
 	
