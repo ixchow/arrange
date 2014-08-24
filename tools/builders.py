@@ -62,7 +62,9 @@ class BuildMesh:
 		print 'Building ' + self.path
 		result = BuildResult()
 		blender_cmd = [BuildMesh.blender, "--background", self.path, "--python", "tools/blend-to-js.py", "--", self.tmp_path]
-		if subprocess.call(blender_cmd) != 0:
+		if os.path.exists(self.tmp_path) and os.path.getmtime(self.tmp_path) >= os.path.getmtime(self.path):
+			print ' (using existing ' + self.tmp_path + ')'
+		elif subprocess.call(blender_cmd) != 0:
 			raise Exception("Failed to execute `" + " ".join(blender_cmd) + "`")
 		with open(self.tmp_path, 'rb') as f:
 			result.js = "window." + self.namespace + " = " + f.read() + ";\n";
