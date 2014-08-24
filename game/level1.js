@@ -19,11 +19,12 @@ exports = function() {
 			if (!groups[t[1]]) {
 				groups[t[1]] = { tiles: [], r: 0 };
 			}
-			var pt = { x: x++, y: y };
 			if (!groups[t[1]].at) {
-				groups[t[1]].at = pt;
+				groups[t[1]].at = { x: x, y: y };
 			}
+			var pt = { x: x - groups[t[1]].at.x, y: y - groups[t[1]].at.y };
 			groups[t[1]].tiles.push({ tile: tileMap[t[0]], r: 0, at: pt});
+			x++;
 		});
 	});
 	
