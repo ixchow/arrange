@@ -8,23 +8,25 @@ exports = function() {
 		'{': { r: 3, t: game.tiles.PathLeft },
 		'[': { r: 2, t: game.tiles.PathLeft },
 		']': { r: 1, t: game.tiles.PathLeft },
-		H: { r: 0, t: game.tiles.Pillar },
+		H: { r: 0, t: game.tiles.HamsterCage },
+		h: { r: 0, t: game.tiles.Hamster },
 		D: { r: 0, t: game.tiles.Desk },
 		B: { r: 0, t: game.tiles.Pillar },
 		d: { r: 0, t: game.tiles.SmallDesk },
+		c: { r: 0, t: game.tiles.Chair },
 		k: { r: 0, t: game.tiles.Pillar }
 	};
 	
 	var txt = "";
-	txt += ".. .. B1 B1 B2 B2 .. .. ..\n";
-	txt += ".. .. D1 D1 D1 .. {4 -4 E.\n";
-	txt += "H. .. D1 D1 D1 .. |4 .. ..\n";
-	txt += "{. -. -. -. -. -. ]4 .. ..\n";
-	txt += "|. d. .. d3 .. d3 .. .. k.\n";
+	txt += "H5 .. B1 B1 B2 B2 .. .. ..\n";
+	txt += "{5 -5 D1 D1 D1 .. {4 -4 E.\n";
+	txt += "h1 .. D1 D1 D1 .. |4 .. ..\n";
+	txt += ".. .. -6 -6 -6 -6 ]4 .. ..\n";
+	txt += "|. d. .. .. c3 .. .. .. k.\n";
 	txt += "|. .. .. .. .. .. .. .. k.\n";
 	txt += "|. d. .. d2 .. d2 .. .. k.\n";
 	txt += "[. S. .. .. .. .. .. .. k.\n";
-	txt += ".. .. .. .. .. .. .. .. ..\n";
+	txt += ".. .. .. .. d3 .. d3 .. ..\n";
 	
 	var groups = {};
 	var y = -1;
