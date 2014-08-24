@@ -1,9 +1,10 @@
 exports = function(tileMap, txt) {
 	var groups = {};
-	var y = -1;
-	var xt = txt.trim().split('\n').map(function (yt) {
+	var rows = txt.trim().split('\n');
+	var y = (rows.length / 2) | 0;
+	var xt = rows.map(function (yt) {
 		var x = -1;
-		y++;
+		--y;
 		return yt.split(' ').map(function(t) {
 			x++;
 			if (t == '..') return null;
