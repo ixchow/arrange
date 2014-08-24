@@ -440,6 +440,18 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 	var yZ = MVP[6];
 	//(TODO: set x/y limits and steps based on this data)
 
+	function tr(r, at) {
+		var xd = rot(r,{x:1, y:0});
+		var yd = rot(r,{x:0, y:1});
+		var xf = new Mat4(
+			0.5 * xd.x, 0.5 * xd.y, 0.0, 0.0,
+			0.5 * yd.x, 0.5 * yd.y, 0.0, 0.0,
+			0.0, 0.0, 0.5, 0.0,
+			at.x, at.y, 0.0, 1.0
+		);
+		gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
+	}
+
 	for (var x = 0; x < this.combined.size.x; ++x) {
 		for (var y = 0; y < this.combined.size.y; ++y) {
 			var tiles = this.combined[y * this.combined.size.x + x];
@@ -460,16 +472,7 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 			tiles.forEach(function(t, ti){
 				if (!drawSelect && t.path) return;
 
-				//set up transform based on at,r:
-				var xd = rot(t.r,{x:1, y:0});
-				var yd = rot(t.r,{x:0, y:1});
-				var xf = new Mat4(
-					0.5 * xd.x, 0.5 * xd.y, 0.0, 0.0,
-					0.5 * yd.x, 0.5 * yd.y, 0.0, 0.0,
-					0.0, 0.0, 0.5, 0.0,
-					at.x, at.y, 0.0, 1.0
-				);
-				gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
+				tr(t.r, at);
 				if (drawSelect) {
 					gl.vertexAttrib4f(s.aTag.location, x / 255.0, y / 255.0, ti, 255);
 				}
@@ -478,6 +481,9 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 
 		}
 	}
+
+  tr(0, { x: 0, y: 0});
+	// t.tile.emit();
 
 	if (!drawSelect && this.paths && this.paths.length > 0) {
 		s = shaders.select; //temp, will be shaders.path at some pt
