@@ -20,10 +20,37 @@ function rot(r, pt) {
 	}
 }
 
-function rot_group(r, group) {
-	group.tiles.forEach(function(f) {
-		f.at = rot(r, f.at);
-	});
+function rot_fragment(r, fragment, pivot) {
+	if (!pivot) {
+		pivot = {x:fragment.at.x, y:fragment.at.y};
+	}
+	//Figure out current local space of fragment:
+	var xd = rot(fragment.r, {x:1, y:0});
+	var yd = rot(fragment.r, {x:0, y:1});
+
+	//transform pivot to local space of fragment:
+	var local = {x:pivot.x - fragment.at.x, y:pivot.y - fragment.at.y};
+	local = {
+		x: local.x * xd.x + local.y * xd.y,
+		y: local.x * yd.x + local.y * yd.y
+	};
+
+	//update fragment rotation:
+	fragment.r = (fragment.r + r) % 4;
+
+	//Get new local space of fragment:
+	var xd = rot(fragment.r, {x:1, y:0});
+	var yd = rot(fragment.r, {x:0, y:1});
+
+	//see where local ended up:
+	var next = {
+		x:xd.x * local.x + yd.x * local.y + fragment.at.x,
+		y:xd.y * local.x + yd.y * local.y + fragment.at.y
+	};
+
+	//Move fragment center to keep pivot in a uniform place:
+	fragment.at.x += pivot.x - next.x;
+	fragment.at.y += pivot.y - next.y;
 }
 
 var ArrangeScene = function(level) {
@@ -287,10 +314,10 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 
 	for (var x = 0; x < this.combined.size.x; ++x) {
 		for (var y = 0; y < this.combined.size.y; ++y) {
-			var tiles = this.combined[y * this.combined.size.x + x];
+			var stack = this.combined[y * this.combined.size.x + x];
 			var at = {x:this.combined.min.x + x, y:this.combined.min.y + y};
 
-			if (tiles.length && !drawSelect) {
+			if (stack.length && !drawSelect) {
 				//draw floor
 				var xf = new Mat4(
 					0.5, 0.0, 0.0, 0.0,
@@ -302,7 +329,7 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 				meshes.tiles.empty.emit();
 			}
 
-			tiles.forEach(function(t, ti){
+			stack.forEach(function(t, ti){
 				if (!drawSelect && t.path) return;
 
 				tr(t.r, at);
@@ -542,7 +569,11 @@ ArrangeScene.prototype.mouse = function(x, y, isDown) {
 	if (isDown && !this.mouseDown) {
 		if (new Date().getTime() - dblClickStart < 300) {
 			if (this.hoverInfo && this.hoverInfo.fragment) {
-				rot_group(1, this.hoverInfo.fragment);
+				var pivot = {
+					x:this.hoverInfo.at.x + this.combined.min.x,
+					y:this.hoverInfo.at.y + this.combined.min.y
+				};
+				rot_fragment(1, this.hoverInfo.fragment, pivot);
 				this.buildCombined();
 			}
 		} else {
