@@ -70,8 +70,8 @@ exports = function() {
 		this.fragments.some(function(f){
 			f.tiles.some(function(t){
 				if (t.tag == tag) {
-					var dx = rot((f.r + t.r) % 4, {x:1, y:0});
-					var dy = rot((f.r + t.r) % 4, {x:0, y:1});
+					var dx = rot(f.r, {x:1, y:0});
+					var dy = rot(f.r, {x:0, y:1});
 					found = {
 						x:dx.x * t.at.x + dy.x * t.at.y + f.at.x,
 						y:dx.y * t.at.x + dy.y * t.at.y + f.at.y
@@ -106,8 +106,10 @@ exports = function() {
 		});
 
 		if (arrange.solved) {
+			console.log(exitTag);
 			arrange.scriptTriggers.push({
 				at:exitTag,
+				advance:true,
 				name:"finish",
 				script:exitScript
 			});

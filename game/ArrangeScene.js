@@ -164,6 +164,9 @@ ArrangeScene.prototype.update = function(elapsed) {
 	if (this.dragInfo && this.mouse2d) {
 		this.updateDrag();
 	}
+	if (!this.dragInfo && this.needScriptTriggers) {
+		this.updateScriptTriggers();
+	}
 }
 
 ArrangeScene.prototype.buildCombined = function() {
@@ -223,12 +226,22 @@ ArrangeScene.prototype.buildCombined = function() {
 	//Check consistency:
 	this.checkCombined();
 
-	//Let level scripts update triggers, if needed:
+	//Mark that we need script triggers (will be updated when drag is finished):
 	this.scriptTriggers = [];
-	this.level.addScriptTriggers && this.level.addScriptTriggers(this, null, null);
+	if (this.dragInfo) {
+		this.needScriptTriggers = true;
+	} else {
+		this.updateScriptTriggers();
+	}
 
 	//building combined changes the scene, so mark select as dirty:
 	this.selectDirty = true;
+};
+
+ArrangeScene.prototype.updateScriptTriggers = function() {
+	delete this.needScriptTriggers;
+	this.scriptTriggers = [];
+	this.level.addScriptTriggers && this.level.addScriptTriggers(this);
 };
 
 ArrangeScene.prototype.checkCombined = function() {
@@ -236,14 +249,15 @@ ArrangeScene.prototype.checkCombined = function() {
 	this.problems = game.problems.determineProblems(combined);
 	this.paths = game.paths.determinePaths(combined, this.problems);
 	this.require_problems = game.provides_requires.check(combined);
-	this.solved = (this.paths[0].length > 10) && (this.problems.length == 0) && (this.require_problems.length == 0);
+	this.solved = (this.problems.length == 0) && (this.require_problems.length == 0);
+	var pathsSolved = this.paths.every(function(path){
+		if (path.length < 2) return false;
+		var last = path[path.length-1];
+		if (!last.s) return false;
+		if ('pathOut' in last.s) return false;
+		return true;
+	});
 };
-
-ArrangeScene.prototype.checkWin = function() {
-	if (this.solved) {
-		game.sfx.win();
-	}
-}
 
 //These should probably get moved:
 function lookAt(eye, target, up) {
@@ -661,7 +675,9 @@ ArrangeScene.prototype.mouse = function(x, y, isDown) {
 		if (this.dragInfo) {
 			this.updateDrag();
 			this.dragInfo = null;
-			this.checkWin();
+			if (this.needScriptTriggers) {
+				this.updateScriptTriggers();
+			}
 		}
 	}
 
