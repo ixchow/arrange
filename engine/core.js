@@ -74,8 +74,8 @@ exports.init = function(onstart) {
 		var game = document.getElementById("game");
 		var game_style = getComputedStyle(game);
 		var max_size = {x:game.clientWidth, y:game.clientHeight};
-		max_size.x -= parseInt(game_style["padding-left"]) + parseInt(game_style["padding-right"]);
-		max_size.y -= parseInt(game_style["padding-top"]) + parseInt(game_style["padding-bottom"]);
+		max_size.x -= parseInt(game_style.getPropertyValue("padding-left")) + parseInt(game_style.getPropertyValue("padding-right"));
+		max_size.y -= parseInt(game_style.getPropertyValue("padding-top")) + parseInt(game_style.getPropertyValue("padding-bottom"));
 
 		//Lower limit to size:
 		max_size.x = Math.max(100, max_size.x);

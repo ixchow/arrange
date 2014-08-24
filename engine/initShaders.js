@@ -76,6 +76,9 @@ exports = function() {
 	//Now that shaders are attached, link programs:
 	for (name in programNames) {
 		var program = getProgram(name);
+
+		gl.bindAttribLocation(program, 0, "aVertex");
+
 		gl.linkProgram(program);
 
 		if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
@@ -87,7 +90,7 @@ exports = function() {
 		for (var i = 0; i < na; ++i) {
 			var a = gl.getActiveAttrib(program, i);
 			program[a.name] = {
-				location:i,
+				location:gl.getAttribLocation(program, a.name),
 				type:a.type,
 				size:a.size
 			};
