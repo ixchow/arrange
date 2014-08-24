@@ -85,6 +85,7 @@ var ArrangeScene = function(buildLevel, previousStoryState) {
 		{r:255, g:0, b:0, a:0}
 	);
 	this.selectDirty = true;
+	this.selectTagMin = {x:0, y:0};
 
 	return this;
 };
@@ -285,6 +286,15 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 	//drawSelect = true; //DEBUG
 
 	if (drawSelect) {
+		this.selectTagMin = {
+			x:this.combined.min.x,
+			y:this.combined.min.y
+		};
+		//TODO: if we want to allow script triggers outside the level,
+		//  adjust the min based on script trigger positions.
+	}
+
+	if (drawSelect) {
 		gl.clearColor(1.0, 1.0, 1.0, 0.0);
 	} else {
 		gl.clearColor(0.2, 0.2, 0.2, 1.0);
@@ -326,6 +336,8 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 			var stack = this.combined[y * this.combined.size.x + x];
 			var at = {x:this.combined.min.x + x, y:this.combined.min.y + y};
 
+			var tag = {x:at.x - this.selectTagMin.x, y:at.y - this.selectTagMin.y};
+
 			if (stack.length && !drawSelect) {
 				//draw floor
 				var xf = new Mat4(
@@ -343,10 +355,10 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 
 				tr(t.r, at);
 				if (drawSelect) {
-					gl.vertexAttrib3f(s.aTag.location, x / 255.0, y / 255.0, ti);
+					gl.vertexAttrib3f(s.aTag.location, tag.x / 255.0, tag.y / 255.0, ti / 255.0);
 				}
 				t.tile.emit();
-
+/*
 				if (t.rotate || true) {
 					var xf = new Mat4(
 						0.5, 0.0, 0.0, 0.0,
@@ -355,11 +367,12 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 						at.x, at.y, 0.0, 1.0
 					);
 					if (drawSelect) {
-						gl.vertexAttrib3f(s.aTag.location, x / 255.0, y / 255.0, ti);
+						gl.vertexAttrib3f(s.aTag.location, tag.x / 255.0, tag.y / 255.0, ti / 255.0);
 					}
 					gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
 					meshes.icons.rotate_ccw.emit();
 				}
+*/
 				
 			});
 
@@ -367,6 +380,7 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 	}
 
 	//Draw action icons (script triggers, rotations):
+	var selectTagMin = this.selectTagMin;
 	this.scriptTriggers.forEach(function(st){
 		//TODO: if script has played already, skip drawing
 		var xf = new Mat4(
@@ -379,7 +393,11 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 		//TODO: select icon based on script info (e.g. different icon for exit)
 		//TODO: orient for viewing direction
 		if (drawSelect) {
-			gl.vertexAttrib3f(s.aTag.location, x / 255.0, y / 255.0, 255);
+			var tag = {
+				x:st.at.x - selectTagMin.x,
+				y:st.at.y - selectTagMin.y
+			};
+			gl.vertexAttrib3f(s.aTag.location, tag.x / 255.0, tag.y / 255.0, 255);
 		}
 
 		meshes.icons.play.emit();
@@ -416,14 +434,18 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 		gl.uniformMatrix4fv(s.uMVP.location, false, MVP);
 		this.problemPulse.draw(this.problems, MVP);
 		if (this.hoverInfo) {
-			var f = this.hoverInfo.fragment;
-			var dx = rot(f.r,{x:1,y:0});
-			var dy = rot(f.r,{x:0,y:1});
-			this.hoverPulse.draw(f.tiles.map(function (t) {
-				return {at: {
-					x: t.at.x * dx.x + t.at.y * dy.x + f.at.x,
-					y: t.at.x * dx.y + t.at.y * dy.y + f.at.y}};
-			}), MVP);
+			if (this.hoverInfo.scriptTrigger) {
+				this.hoverPulse.draw([{at:this.hoverInfo.at}], MVP);
+			} else if (this.hoverInfo.fragment) {
+				var f = this.hoverInfo.fragment;
+				var dx = rot(f.r,{x:1,y:0});
+				var dy = rot(f.r,{x:0,y:1});
+				this.hoverPulse.draw(f.tiles.map(function (t) {
+					return {at: {
+						x: t.at.x * dx.x + t.at.y * dy.x + f.at.x,
+						y: t.at.x * dx.y + t.at.y * dy.y + f.at.y}};
+				}), MVP);
+			}
 		}
 		this.requirePulse.draw(this.require_problems, MVP);
 	}
@@ -512,7 +534,7 @@ ArrangeScene.prototype.pixelToPlane = function(x,y,z) {
 };
 
 ArrangeScene.prototype.mouseToPlane = function(z) {
-	return this.pixelToPlane(mouse2d.x, mouse2d.y, z);
+	return this.pixelToPlane(this.mouse2d.x, this.mouse2d.y, z);
 };
 
 ArrangeScene.prototype.setHoverInfo = function(x, y) {
@@ -534,13 +556,17 @@ ArrangeScene.prototype.setHoverInfo = function(x, y) {
 	gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, tag);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
+
 	//Fill in what we can about the hover info from the tag:
 
 	var idx = 255; //idx of '255' is "don't know"
 	if (tag[0] != 255 && tag[1] != 255) {
 		//If we didn't hit the background, can get info from tag:
-		hoverInfo.at = {x:tag[0], y:tag[1]};
-		hoverInfo.z = tag[3];
+		hoverInfo.at = {
+			x:tag[0] + this.selectTagMin.x,
+			y:tag[1] + this.selectTagMin.y
+		};
+		hoverInfo.z = tag[3] / (255.0 * TagZScale);
 		idx = tag[2];
 	} else {
 		//hit background, so project to ground plane:
@@ -583,12 +609,14 @@ ArrangeScene.prototype.setHoverInfo = function(x, y) {
 			console.warn("tag index " + idx + " greater than stack count (" + stack.length + ") here.");
 		}
 		if (idx < stack.length) {
-			//store info about hovered fragment:
-			hoverInfo.stackItem = stack[idx]; //TODO: figure out if we want the stack item or the actual tile for rotation.
-			hoverInfo.fragment = stack[idx].fragment;
-			var mouse3d = pixelToPlane(x,y,0.0);
-			var f = stack[idx].fragment.at;
-			hoverInfo.mouseToFragment = {x:f.x - mouse3d.x, y:f.y - mouse3d.y};
+			var fragment = stack[idx].fragment;
+			if (!fragment.fixed) {
+				//store info about hovered fragment:
+				hoverInfo.stackItem = stack[idx]; //TODO: figure out if we want the stack item or the actual tile for rotation.
+				hoverInfo.fragment = fragment;
+				var mouse3d = this.pixelToPlane(x,y,0.0);
+				hoverInfo.mouseToFragment = {x:fragment.at.x - mouse3d.x, y:fragment.at.y - mouse3d.y};
+			}
 		}
 	}
 };
@@ -624,21 +652,15 @@ ArrangeScene.prototype.updateDrag = function() {
 	}
 };
 
-var dblClickStart = null;
 ArrangeScene.prototype.mouse = function(x, y, isDown) {
 	this.mouse2d = {x:x, y:y};
 
 	if (!isDown && this.mouseDown) {
-		var wasDrag = false;
-		//release drag:
+		this.mouseDown = false;
+		//release drag, if dragging:
 		if (this.dragInfo) {
-			var clickLength = new Date().getTime() - this.dragInfo.start;
-			wasDrag = !!this.dragInfo.fragment && clickLength > 200;
 			this.updateDrag();
 			this.dragInfo = null;
-		}
-		this.mouseDown = false;
-		if (wasDrag) {
 			this.checkWin();
 		}
 	}
@@ -648,20 +670,13 @@ ArrangeScene.prototype.mouse = function(x, y, isDown) {
 		this.setHoverInfo(x,y);
 	}
 
-	//if mouse was just pressed down, start dragging:
+	//if mouse was just pressed down, take action:
 	if (isDown && !this.mouseDown) {
-		if (new Date().getTime() - dblClickStart < 300) {
-			if (this.hoverInfo && this.hoverInfo.fragment) {
-				var pivot = {
-					x:this.hoverInfo.at.x + this.combined.min.x,
-					y:this.hoverInfo.at.y + this.combined.min.y
-				};
-				rot_fragment(1, this.hoverInfo.fragment, pivot);
-				this.buildCombined();
-			}
-		} else {
-			this.mouseDown = true;
-			if (this.hoverInfo) {
+		if (this.hoverInfo) {
+			if (this.hoverInfo.scriptTrigger) {
+				console.log("Would play script '" + this.hoverInfo.scriptTrigger.name + "' here.");
+			} else if (this.hoverInfo.fragment) {
+				//TODO: rotation check here!
 				this.dragInfo = this.hoverInfo;
 			} else {
 				var mouse3d = this.mouseToPlane(0.0);
@@ -673,10 +688,17 @@ ArrangeScene.prototype.mouse = function(x, y, isDown) {
 					}
 				};
 			}
-
-			this.dragInfo.start = new Date().getTime();
-			dblClickStart = this.dragInfo.start;
 		}
+		this.mouseDown = true;
+			/*
+			rotate code, for use in a sec:
+				var pivot = {
+					x:this.hoverInfo.at.x + this.combined.min.x,
+					y:this.hoverInfo.at.y + this.combined.min.y
+				};
+				rot_fragment(1, this.hoverInfo.fragment, pivot);
+				this.buildCombined();
+			*/
 	}
 };
 
