@@ -1,18 +1,18 @@
 exports = function() {
 	var tileMap = {
-		S: game.tiles.PathStart,
-		E: game.tiles.PathEnd,
-		P: game.tiles.Pillar,
-		'|': game.tiles.PathStraight,
-		'-': game.tiles.PathStraight,
-		'{': game.tiles.PathLeft,
-		'[': game.tiles.PathRight,
-		']': game.tiles.PathRight,
-		H: game.tiles.Pillar,
-		D: game.tiles.Pillar,
-		B: game.tiles.Pillar,
-		d: game.tiles.Pillar,
-		k: game.tiles.Pillar
+		S: { r: 0, t: game.tiles.PathStart },
+		E: { r: 0, t: game.tiles.PathEnd },
+		P: { r: 0, t: game.tiles.Pillar },
+		'|': { r: 0, t: game.tiles.PathStraight },
+		'-': { r: 1, t: game.tiles.PathStraight },
+		'{': { r: 0, t: game.tiles.PathLeft },
+		'[': { r: 0, t: game.tiles.PathRight },
+		']': { r: 0, t: game.tiles.PathRight },
+		H: { r: 0, t: game.tiles.Pillar },
+		D: { r: 0, t: game.tiles.Pillar },
+		B: { r: 0, t: game.tiles.Pillar },
+		d: { r: 0, t: game.tiles.Pillar },
+		k: { r: 0, t: game.tiles.Pillar }
 	};
 	
 	var txt = "";
@@ -45,7 +45,7 @@ exports = function() {
 			if (!tile) {
 				throw new Error(t);
 			}
-			groups[t[1]].tiles.push({ tile: tile, r: 0, at: pt});
+			groups[t[1]].tiles.push({ tile: tile.t, r: tile.r, at: pt});
 		});
 	});
 	
