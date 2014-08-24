@@ -1,3 +1,5 @@
+var sfx_master;
+var volume;
 
 exports = function(wave, start_freq, end_freq, attack, decay, vib_freq, vib_effect) {
 	// var wave = ['sin', 'saw', 'tri', 'square', 'fnoise'][4];
@@ -19,5 +21,28 @@ exports = function(wave, start_freq, end_freq, attack, decay, vib_freq, vib_effe
 	env.on('bang', function() {
 		fp.set({value: start_freq}).expTo(end_freq, len + 'ms');
 	});
-	return env.play();
+
+	sfx_master.append(env);
+	return env;
+}
+
+exports.init = function() {
+	volume = engine.localstorage.float('sfx_volume', 1);
+	sfx_master = 	T('+', { mul: volume() });
+	sfx_master.play();
+	volume(function(v) {
+		sfx_master.set({mul: v});
+	});
+}
+
+exports.destroy = function(sfx) {
+	sfx_master.remove(sfx);
+}
+
+exports.toggleMute = function() {
+	if (volume() > 0) {
+		volume(0);
+	} else {
+		volume(1);
+	}
 }

@@ -28,20 +28,25 @@ function supports_html5_storage() {
   }
 }
 
-exports = {
-	bool: function(name, initialValue) {
+function lsprop(read, normalize) {
+	return function(name, initialValue) {
 
 		if (supports_html5_storage) {
-			initialValue = localStorage.getItem(name) == 'true';
+			initialValue = read(localStorage.getItem(name) || initialValue);
 		}
 
-		var p = prop(!!initialValue);
+		var p = prop(normalize(initialValue));
 		if (supports_html5_storage) {
 			p(function(v) {
-				localStorage.setItem(name, !!v);
+				localStorage.setItem(name, normalize(v));
 			});
 		}
 
 		return p;
 	}
+}
+
+exports = {
+	bool: lsprop(function(v) { return v == 'true' }, function(v) { return !!v }),
+	float: lsprop(function(v) { return parseFloat(v) }, function(v) { return v })
 }
