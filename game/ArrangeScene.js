@@ -130,7 +130,7 @@ ArrangeScene.prototype.resize = function() {
 };
 
 ArrangeScene.prototype.update = function(elapsed) {
-  this.problemPulse.advance(elapsed);
+	this.problemPulse.advance(elapsed);
 	this.hoverPulse.advance(elapsed*1.7);
 	
 	//--- move the camera a bit just for the heck of it ---
@@ -300,6 +300,8 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 	var yZ = MVP[6];
 	//(TODO: set x/y limits and steps based on this data)
 
+	//Updates the transformation matrix in the current shader for a given
+	// rotation and position:
 	function tr(r, at) {
 		var xd = rot(r,{x:1, y:0});
 		var yd = rot(r,{x:0, y:1});
@@ -342,8 +344,6 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 		}
 	}
 
-  tr(0, { x: 0, y: 0});
-	// t.tile.emit();
 
 	if (!drawSelect && this.paths && this.paths.length > 0) {
 		s = shaders.select; //temp, will be shaders.path at some pt
@@ -376,8 +376,12 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 		this.problemPulse.draw(this.problems, MVP);
 		if (this.hoverInfo) {
 			var f = this.hoverInfo.fragment;
+			var dx = rot(f.r,{x:1,y:0});
+			var dy = rot(f.r,{x:0,y:1});
 			this.hoverPulse.draw(f.tiles.map(function (t) {
-				return {at: { x: t.at.x + f.at.x, y: t.at.y + f.at.y}};
+				return {at: {
+					x: t.at.x * dx.x + t.at.y * dy.x + f.at.x,
+					y: t.at.x * dx.y + t.at.y * dy.y + f.at.y}};
 			}), MVP);
 		}
 	}
