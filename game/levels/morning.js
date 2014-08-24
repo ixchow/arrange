@@ -29,7 +29,48 @@ exports = function() {
 	txt += "[. >. -. J. .. ].\n";
 	txt += "[. _. _. _. _. ].\n";
 
-	return game.buildLevel(tileMap, txt);
-};
+	var morning = game.buildLevel(tileMap, txt);
 
-console.log(exports()); //DEBUG
+	/*
+		enterScript returns an animation that plays when starting the level;
+		it has access to 'arrange' -- the level as a wholelevel fragments as generated.
+	*/
+	morning.enter = function(arrange, storyState) {
+		return {
+			pawn:{
+				mesh:meshes.characters.pawn,
+				actions:[
+					{appear:{x:1,y:1}},
+					{say:"I remember getting out of bed..."},
+					{vanish:null},
+					{emit:"next"},
+				]
+			},
+			pawn2:{
+				mesh:meshes.characters.pawn,
+				actions:[
+					{wait:"next"},
+					{appear:{x:4,y:3}},
+					{say:"...and walking out the door..."},
+					{vanish:null}
+				]
+			}
+		};
+	};
+
+	morning.leave = function(arrange, storyState) {
+		return {
+			pawn:{
+				mesh:meshes.characters.pawn,
+				actions:[
+					{appear:{x:1,y:1}},
+					{say:"I should be walking this path"},
+					{vanish:null},
+				]
+			}
+		};
+	};
+
+	
+	return morning;
+};

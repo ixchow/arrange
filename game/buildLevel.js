@@ -32,5 +32,7 @@ exports = function(tileMap, txt) {
 	    fragments.push(groups[key]);
 	}
 
-	return fragments;
+	return {
+		fragments:fragments
+	};
 };
