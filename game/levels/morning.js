@@ -31,7 +31,7 @@ exports = function() {
 
 	var morning = game.buildLevel(tileMap, txt);
 
-	var introScript = {
+	var wakeScript = {
 		pawn:{
 			mesh:meshes.characters.pawn,
 			actions:[
@@ -94,50 +94,22 @@ exports = function() {
 		 that transitions to the next level.
 	*/
 	morning.addScriptTriggers = function(arrange) {
-		var bedTag = findTag("bed");
-		var exitTag = findTag("exit");
+		var bedTag = findTag.call(arrange, "bed");
+		var exitTag = findTag.call(arrange, "exit");
 
 		arrange.scriptTriggers = [];
 
 		arrange.scriptTriggers.push({
 			at:bedTag,
 			name:"wakeMemory",
-			script:{
-				pawn:{
-					mesh:meshes.characters.pawn,
-					actions:[
-						{appear:bedTag},
-						{say:"I remember getting out of bed..."},
-						{vanish:null},
-						{emit:"next"},
-					]
-				},
-				pawn2:{
-					mesh:meshes.characters.pawn,
-					actions:[
-						{wait:"next"},
-						{appear:exitTag},
-						{say:"...and walking out the door..."},
-						{vanish:null}
-					]
-				}
-			}
+			script:wakeScript
 		});
 
-		if (arrange.consistent()) {
+		if (arrange.solved) {
 			arrange.scriptTriggers.push({
 				at:exitTag,
 				name:"finish",
-				script:{
-					pawn:{
-						mesh:meshes.characters.pawn,
-						actions:[
-							{appear:{x:1,y:1}},
-							{say:"I should be walking this path"},
-							{vanish:null},
-						]
-					}
-				}
+				script:exitScript
 			});
 		}
 
