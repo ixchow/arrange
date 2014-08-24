@@ -103,15 +103,15 @@ ArrangeScene.prototype.update = function(elapsed) {
 	if (this.spin > 2.0 * Math.PI) this.spin = this.spin % (2.0 * Math.PI);
 
 	var ang = (Math.sin(this.spin) * 0.01- 0.75) * Math.PI;
-	this.camera.eye.x = Math.cos(ang) * 5.0;
-	this.camera.eye.y = Math.sin(ang) * 5.0;
+	this.camera.eye.x = this.camera.target.x + Math.cos(ang) * 5.0;
+	this.camera.eye.y = this.camera.target.y + Math.sin(ang) * 5.0;
 
 	var MV = lookAt(this.camera.eye, this.camera.target, this.camera.up);
 	var P = new Mat4(
 		0.1, 0.0, 0.0, 0.0,
 		0.0, 0.1 * (engine.Size.x / engine.Size.y), 0.0, 0.0,
-		0.0, 0.0,-0.1, 0.0,
-		0.0, 0.0, 0.0, 1.0
+		0.0, 0.0,-0.01, 0.0,
+		0.0, 0.0,-0.5, 1.0
 	);
 	//Alt: use perspective projection:
 	//P = perspective(45.0, engine.Size.x / engine.Size.y, 0.1, 100.0);
@@ -536,17 +536,32 @@ ArrangeScene.prototype.setHoverInfo = function(x, y) {
 
 ArrangeScene.prototype.updateDrag = function() {
 	var mouse3d = this.mouseToPlane(this.dragInfo.z);
-	var want = {
-		x:mouse3d.x + this.dragInfo.mouseToFragment.x,
-		y:mouse3d.y + this.dragInfo.mouseToFragment.y
-	};
-	want.x = Math.round(want.x);
-	want.y = Math.round(want.y);
-	if (this.dragInfo.fragment.at.x != want.x || this.dragInfo.fragment.at.y != want.y) {
-		this.dragInfo.fragment.at.x = Math.round(want.x);
-		this.dragInfo.fragment.at.y = Math.round(want.y);
-		this.buildCombined();
-		this.drawHelper(true);
+	if (this.dragInfo.fragment) {
+		var want = {
+			x:mouse3d.x + this.dragInfo.mouseToFragment.x,
+			y:mouse3d.y + this.dragInfo.mouseToFragment.y
+		};
+		want.x = Math.round(want.x);
+		want.y = Math.round(want.y);
+		if (this.dragInfo.fragment.at.x != want.x || this.dragInfo.fragment.at.y != want.y) {
+			this.dragInfo.fragment.at.x = Math.round(want.x);
+			this.dragInfo.fragment.at.y = Math.round(want.y);
+			this.buildCombined();
+			this.drawHelper(true);
+		}
+	} else {
+		var ofs = {
+			x:mouse3d.x - this.dragInfo.prevMouse3d.x,
+			y:mouse3d.y - this.dragInfo.prevMouse3d.y
+		};
+		/*
+		var mouse3d = this.mouseToPlane(this.dragInfo.z);
+		this.dragInfo.prevMouse3d.x = mouse3d.x;
+		this.dragInfo.prevMouse3d.y = mouse3d.y;
+		*/
+
+		this.camera.target.x -= ofs.x;
+		this.camera.target.y -= ofs.y;
 	}
 };
 
@@ -572,6 +587,15 @@ ArrangeScene.prototype.mouse = function(x, y, isDown) {
 		this.mouseDown = true;
 		if (this.hoverInfo) {
 			this.dragInfo = this.hoverInfo;
+		} else {
+			var mouse3d = this.mouseToPlane(0.0);
+			this.dragInfo = {
+				z:0,
+				prevMouse3d:{
+					x:mouse3d.x,
+					y:mouse3d.y
+				}
+			};
 		}
 	}
 
