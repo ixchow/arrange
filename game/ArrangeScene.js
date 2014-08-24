@@ -780,12 +780,6 @@ ArrangeScene.prototype.mouse = function(x, y, isDown) {
 
 };
 
-ArrangeScene.prototype.debug_move = function(n, x, y) {
-	this.fragments[n].at.x += x;
-	this.fragments[n].at.y += y;
-	this.buildCombined();
-}
-
 ArrangeScene.prototype.debug_rot = function(n) {
 	rot_group(1, this.fragments[n]);
 	this.buildCombined();
