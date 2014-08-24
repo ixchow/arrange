@@ -27,6 +27,11 @@ function convert_index(combined, idx, d) {
 	return to_idx({size: size}, 1+2*x+d.x, 1+2*y+d.y );
 }
 
+function rev_rot(d, r) {
+	if (d == 'c') return d;
+	return "nesw"[("nesw".indexOf(d) + r) % 4];
+}
+
 exports = {
 	check: function(combined) {
 		var max = convert_index(combined, to_idx(combined, combined.size.x-1, combined.size.y-1), 's') + 1;
@@ -37,7 +42,7 @@ exports = {
 				['c', 'n', 's', 'e', 'w'].forEach(function (d) {
 					var x = (idx % combined.size.x);
 					var y = ((idx / combined.size.x) | 0);
-					var new_idx = convert_index(combined, idx, d);
+					var new_idx = convert_index(combined, idx, rev_rot(d, s.r));
 					var requires = s.tile.requires && s.tile.requires[d];
 					var provides = s.tile.provides && s.tile.provides[d];
 					if (!requires && !provides) return;
