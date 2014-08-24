@@ -134,6 +134,8 @@ ArrangeScene.prototype.update = function(elapsed) {
 ArrangeScene.prototype.buildCombined = function() {
 	//Splat all fragments into this.combined (a rectangular grid)
 
+	this.paths = [];
+
 	//First figure out the size of grid we need:
 	var min = {x:Infinity, y:Infinity};
 	var max = {x:-Infinity, y:-Infinity};
@@ -262,7 +264,8 @@ ArrangeScene.prototype.checkCombined = function() {
 	// ...let's chase them out to see if they are connected:
 
 	//Start paths with sources:
-	var paths = [];
+	this.paths = []
+	var paths = this.paths;
 	var combined = this.combined;
 	this.combined.forEach(function(stack, idx){
 		stack.forEach(function(s, si){
@@ -270,7 +273,7 @@ ArrangeScene.prototype.checkCombined = function() {
 				var d = (s.r + s.tile.pathOut) % 4;
 				paths.push([{
 					x:idx % combined.size.x,
-					y:(idx / combined.size.y) | 0,
+					y:(idx / combined.size.x) | 0,
 					s:s,
 					d:d
 				}]);
@@ -278,6 +281,7 @@ ArrangeScene.prototype.checkCombined = function() {
 			}
 		});
 	});
+
 
 	//While paths aren't finished, step each still-unfinished path:
 	var active = paths;
@@ -367,7 +371,6 @@ ArrangeScene.prototype.checkCombined = function() {
 				x:(idx % combined.size.x) + combined.min.x,
 				y:((idx / combined.size.x) | 0) + combined.min.y
 			};
-			console.log(idx, at.x, at.y);
 			problems.push({at:at});
 		}
 	});
@@ -455,6 +458,8 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 			}
 
 			tiles.forEach(function(t, ti){
+				if (!drawSelect && t.path) return;
+
 				//set up transform based on at,r:
 				var xd = rot(t.r,{x:1, y:0});
 				var yd = rot(t.r,{x:0, y:1});
@@ -472,6 +477,32 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 			});
 
 		}
+	}
+
+	if (!drawSelect && this.paths && this.paths.length > 0) {
+		s = shaders.select; //temp, will be shaders.path at some pt
+		gl.useProgram(s);
+		var combined = this.combined;
+		this.paths.forEach(function(path, pi){
+			gl.vertexAttrib4f(s.aTag.location, (0.5 + pi * 0.6234) % 1.0, 0.0, 1.0, 1.0);
+			path.forEach(function(p){
+				var t = p.s;
+				var at = {x:p.x+combined.min.x, y:p.y+combined.min.y};
+				var xd = rot(t.r,{x:1, y:0});
+				var yd = rot(t.r,{x:0, y:1});
+				var xf = new Mat4(
+					0.5 * xd.x, 0.5 * xd.y, 0.0, 0.0,
+					0.5 * yd.x, 0.5 * yd.y, 0.0, 0.0,
+					0.0, 0.0, 0.5, 0.0,
+					at.x, at.y, 0.0, 1.0
+				);
+				gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
+				t.tile.emit();
+			});
+		});
+
+		s = shaders.solid;
+		gl.useProgram(s);
 	}
 
 	if (!drawSelect && this.problems && this.problems.length > 0) {
