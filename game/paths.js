@@ -1,17 +1,4 @@
-function rot(r, pt) {
-	if (r < 0) r = (r % 4) + 4;
-	else if (r >= 4) r = r % 4;
-
-	if (r == 0) {
-		return {x:pt.x, y:pt.y};
-	} else if (r == 1) {
-		return {x:-pt.y, y:pt.x};
-	} else if (r == 2) {
-		return {x:-pt.x, y:-pt.y};
-	} else if (r == 3) {
-		return {x:pt.y, y:-pt.x};
-	}
-}
+var rot = function() { return game.utility.rot.apply(this, arguments); }
 
 exports = {
 	determinePaths: function(combined, problems) {
