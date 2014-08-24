@@ -36,7 +36,7 @@ exports = {
 			}
 		}
 
-		//Check for paths that collide in terms of ins or outs:
+		//Check for path segments that collide in terms of ins or outs:
 		combined.forEach(function(stack, idx){
 			function build_d(s) {
 				var d = 0;

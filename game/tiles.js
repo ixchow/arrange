@@ -20,6 +20,22 @@ var o = {
 	low: 1 << 0,
 	high:1 << 1,
 };
+
+/* How conflicts between tiles work:
+ *
+ * - Only one tile may have a given 'fill' bit set in a stack.
+ * - If any tile in a stack has a 'needClear' bit set, no tile may have the
+ *   corresponding 'fill' bit set.
+ *
+ * So a low table might fill o.low, while a path might needClear: o.low | o.high
+ *
+ * It is possible to have tiles that have problems in the same stack as tiles
+ *   that don't have problems.
+ *
+ * Paths are handled 
+ *
+ */
+
 exports = {
 	//Path tiles have an entrance to the west in their default orientation.
 	PathStart: new Tile({
@@ -80,7 +96,6 @@ exports = {
 	Bed: new Tile({
 		mesh:'desk',
 		fill:o.low,
-		needClear:o.low | o.high,
 	})
 };
 
