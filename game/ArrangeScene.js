@@ -45,7 +45,6 @@ var ArrangeScene = function(buildLevel, previousStoryState) {
 	//and generally the point of interaction for that fragment.
 	//It should be located at (0,0), since fragments rotate around (0,0)
 	this.fragments = this.level.fragments;
-	console.log(this.fragments); //DEBUG
 
 	this.localState = {};
 	this.storyState = {};
@@ -174,11 +173,9 @@ ArrangeScene.prototype.buildCombined = function() {
 	//First figure out the size of grid we need:
 	var min = {x:Infinity, y:Infinity};
 	var max = {x:-Infinity, y:-Infinity};
-	console.log("In build: ", this.fragments); //DEBUG
 	this.fragments.forEach(function(f){
 		f.tiles.forEach(function(t){
 			var at = rot(f.r, t.at);
-			console.log(at, rot); //DEBUG
 			at.x += f.at.x;
 			at.y += f.at.y;
 			min.x = Math.min(min.x, at.x);
