@@ -24,9 +24,9 @@ exports = function() {
 	};
 
 	var txt = "";
-	txt += "[. r0 -0 -0 ,1 X1 |1 r2 J2 L2 .. ].\n";
-	txt += ">. J0 &0 r0 J1 &1 L1 L2 &2 r2 D. ].\n";
-	txt += "[. r0 ,0 L0 -1 -1 -1 -2 -2 J2 .. ].\n";
+	txt += "[. r0 -0 -0 ,1 X1 |1 r2 J2 L2 ].\n";
+	txt += ">. J0 &0 r0 J1 &1 L1 L2 &2 r2 D.\n";
+	txt += "[. r0 ,0 L0 -1 -1 -1 -2 -2 J2 ].\n";
 
 	var level = game.buildLevel(tileMap, txt);
 
