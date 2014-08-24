@@ -1,46 +1,31 @@
 var currentAudio;
-var isMuted = false;
-
-function supports_html5_storage() {
-  try {
-    return 'localStorage' in window && window['localStorage'] !== null;
-  } catch (e) {
-    return false;
-  }
-}
-
-if (supports_html5_storage) {
-	isMuted = localStorage.getItem("mute") == 'true';
-}
+var isMuted;
 
 exports = {
+	init: function() {
+		isMuted = engine.localstorage.bool("mute");
+	},
 	play: function(music, synth) {
 		currentAudio = music(synth);
-		if (!isMuted) {
+		if (!isMuted()) {
 			currentAudio.start();
 		}
 	},
 	isMuted: function() {
-		return isMuted;
+		return isMuted();
 	},
 	mute: function() {
-		isMuted = true;
-		if (supports_html5_storage) {
-			isMuted = localStorage.setItem("mute", isMuted);
-		}
+		isMuted(true);
 		if (!currentAudio) return;
 		currentAudio.stop();
 	},
 	unmute: function() {
-		isMuted = false;
-		if (supports_html5_storage) {
-			isMuted = localStorage.setItem("mute", isMuted);
-		}
+		isMuted(false);
 		if (!currentAudio) return;
 		currentAudio.start();
 	},
 	toggleMute: function() {
-		if (isMuted) {
+		if (isMuted()) {
 			this.unmute();
 		} else {
 			this.mute();
