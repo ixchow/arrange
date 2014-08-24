@@ -53,13 +53,13 @@ function rot_fragment(r, fragment, pivot) {
 	fragment.at.y += pivot.y - next.y;
 }
 
-var ArrangeScene = function(level) {
-	//TODO: actually load level from level.
+var ArrangeScene = function(buildLevel) {
+	var level = buildLevel();
 
 	//The first tile in every fragment is the 'key' to the fragment,
 	//and generally the point of interaction for that fragment.
 	//It should be located at (0,0), since fragments rotate around (0,0)
-	this.fragments = level();
+	this.fragments = level.fragments;
 
 	this.currentFragment = null;
 
@@ -87,6 +87,8 @@ var ArrangeScene = function(level) {
 		{r:255, g:255, b:255, a:0}
 	);
 	this.selectDirty = true;
+
+	level.enter && level.enter(this);
 
 	return this;
 };
