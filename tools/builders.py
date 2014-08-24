@@ -27,7 +27,7 @@ class BuildNamespace:
 	def build(self):
 		print 'Building ' + self.path
 		result = BuildResult()
-		result.js = 'window.%s = {};\n' % self.path
+		result.js = 'window.%s = {};\n' % self.path.replace('/','.')
 		return result
 
 class BuildMesh:

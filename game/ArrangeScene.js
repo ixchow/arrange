@@ -32,7 +32,7 @@ var ArrangeScene = function(level) {
 	//The first tile in every fragment is the 'key' to the fragment,
 	//and generally the point of interaction for that fragment.
 	//It should be located at (0,0), since fragments rotate around (0,0)
-	this.fragments = game.level1();
+	this.fragments = level();
 
 	this.currentFragment = null;
 
@@ -53,7 +53,7 @@ var ArrangeScene = function(level) {
 	this.spin = 0.0;
 	this.problemPulse = 0.0;
 
-	this.selectDrity = true;
+	this.selectDirty = true;
 
 	return this;
 };
@@ -62,6 +62,7 @@ var selectFb = null;
 
 ArrangeScene.prototype.enter = function() {
 	this.resize();
+	this.update(0.0);
 	engine.music.play(music.mike1, synths.bells);
 };
 
