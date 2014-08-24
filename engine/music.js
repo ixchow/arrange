@@ -1,34 +1,29 @@
 var currentAudio;
-var isMuted;
+var volume;
+var music_master;
 
 exports = {
 	init: function() {
-		isMuted = engine.localstorage.bool("mute");
+		volume = engine.localstorage.float("music_volume", 0.6);
+		music_master = 	T('+', { mul: volume() });
+		console.log(volume());
+		music_master.play();
+		volume(function(v) {
+			music_master.set({mul: v});
+		});
 	},
 	play: function(music, synth) {
+		if (currentAudio) currentAudio.stop();
+		if (currentAudio) music_master.remove(currentAudio);
 		currentAudio = music(synth);
-		if (!isMuted()) {
-			currentAudio.start();
-		}
-	},
-	isMuted: function() {
-		return isMuted();
-	},
-	mute: function() {
-		isMuted(true);
-		if (!currentAudio) return;
-		currentAudio.stop();
-	},
-	unmute: function() {
-		isMuted(false);
-		if (!currentAudio) return;
+		music_master.append(synth.out);
 		currentAudio.start();
 	},
 	toggleMute: function() {
-		if (isMuted()) {
-			this.unmute();
+		if (volume() > 0.5) {
+			volume(0);
 		} else {
-			this.mute();
+			volume(0.6);
 		}
 	}
 };

@@ -6,6 +6,6 @@ exports = function(mml) {
   mml = mml.replace(/p/g, 'r');
 	var mmls = mml.split(';');
 	return function(synth) {
-		return T("mml", {mml: mmls}, synth.in).set({buddies: synth.out});
+		return T("mml", {mml: mmls}, synth.in);
   };
 }
