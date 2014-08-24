@@ -514,6 +514,7 @@ ArrangeScene.prototype.updateDrag = function() {
 	}
 };
 
+var dblClickStart = null;
 ArrangeScene.prototype.mouse = function(x, y, isDown) {
 	this.mouse2d = {x:x, y:y};
 
@@ -521,7 +522,8 @@ ArrangeScene.prototype.mouse = function(x, y, isDown) {
 		var wasDrag = false;
 		//release drag:
 		if (this.dragInfo) {
-			wasDrag = !!this.dragInfo.fragment;
+			var clickLength = new Date().getTime() - this.dragInfo.start;
+			wasDrag = !!this.dragInfo.fragment && clickLength > 200;
 			this.updateDrag();
 			this.dragInfo = null;
 		}
@@ -538,25 +540,30 @@ ArrangeScene.prototype.mouse = function(x, y, isDown) {
 
 	//if mouse was just pressed down, start dragging:
 	if (isDown && !this.mouseDown) {
-		this.mouseDown = true;
-		if (this.hoverInfo) {
-			this.dragInfo = this.hoverInfo;
+		if (new Date().getTime() - dblClickStart < 300) {
+			if (this.hoverInfo && this.hoverInfo.fragment) {
+				rot_group(1, this.hoverInfo.fragment);
+				this.buildCombined();
+			}
 		} else {
-			var mouse3d = this.mouseToPlane(0.0);
-			this.dragInfo = {
-				z:0,
-				prevMouse3d:{
-					x:mouse3d.x,
-					y:mouse3d.y
-				}
-			};
+			this.mouseDown = true;
+			if (this.hoverInfo) {
+				this.dragInfo = this.hoverInfo;
+			} else {
+				var mouse3d = this.mouseToPlane(0.0);
+				this.dragInfo = {
+					z:0,
+					prevMouse3d:{
+						x:mouse3d.x,
+						y:mouse3d.y
+					}
+				};
+			}
+
+			this.dragInfo.start = new Date().getTime();
+			dblClickStart = this.dragInfo.start;
 		}
 	}
 };
-
-ArrangeScene.prototype.debug_rot = function(n) {
-	rot_group(1, this.fragments[n]);
-	this.buildCombined();
-}
 
 exports = ArrangeScene;
