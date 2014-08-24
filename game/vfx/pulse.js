@@ -1,5 +1,7 @@
 function Pulse(base, tip) {
 	this.pulse = 0.0;
+	this.base = base;
+	this.tip = tip;
 }
 
 Pulse.prototype.advance = function(elapsed) {
@@ -36,8 +38,8 @@ Pulse.prototype.draw = function(list, MVP) {
 			v.push(v.shift());
 		}
 
-		var base = {r:200, g:170, b:100, a:170};
-		var tip = {r:255, g:100, b:0, a:0};
+		var base = this.base;
+		var tip = this.tip;
 		list.forEach(function(p){
 			var h = 1.6 + 0.3 * Math.cos(pulse + p.at.x + p.at.y);
 			verts3.push(p.at.x + v[0].x, p.at.y + v[0].y, 0.0);

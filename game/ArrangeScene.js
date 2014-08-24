@@ -55,7 +55,10 @@ var ArrangeScene = function(level) {
 		{r:200, g:170, b:100, a:170},
 		{r:255, g:100, b:0, a:0}
 	);
-
+	this.hoverPulse = new game.vfx.pulse(
+		{r:170, g:170, b:170, a:170},
+		{r:255, g:255, b:255, a:0}
+	);
 	this.selectDirty = true;
 
 	return this;
@@ -101,6 +104,7 @@ ArrangeScene.prototype.resize = function() {
 
 ArrangeScene.prototype.update = function(elapsed) {
   this.problemPulse.advance(elapsed);
+	this.hoverPulse.advance(elapsed*1.7);
 	
 	//--- move the camera a bit just for the heck of it ---
 	this.spin += elapsed;
@@ -336,6 +340,12 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 	if (!drawSelect) {
 		gl.uniformMatrix4fv(s.uMVP.location, false, MVP);
 		this.problemPulse.draw(this.problems, MVP);
+		if (this.hoverInfo) {
+			var f = this.hoverInfo.fragment;
+			this.hoverPulse.draw(f.tiles.map(function (t) {
+				return {at: { x: t.at.x + f.at.x, y: t.at.y + f.at.y}};
+			}), MVP);
+		}
 	}
 
 	if (!drawSelect) {
