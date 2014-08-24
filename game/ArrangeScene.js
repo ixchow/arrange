@@ -195,7 +195,7 @@ ArrangeScene.prototype.buildCombined = function() {
 ArrangeScene.prototype.checkCombined = function() {
 	var combined = this.combined;
 	this.problems = game.problems.determineProblems(combined);
-	this.paths = game.paths.determinePaths(combined);
+	this.paths = game.paths.determinePaths(combined, this.problems);
 };
 
 //These should probably get moved:

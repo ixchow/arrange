@@ -2,11 +2,13 @@ exports = {
 	determineProblems: function(combined) {
 		//clear problems lists:
 		var problems = [];
+		var hasProblem = {};
 
 		//Check collision consistency:
 		for (var y = 0; y < combined.size.y; ++y) {
 			for (var x = 0; x < combined.size.x; ++x) {
-				var stack = combined[y * combined.size.x + x];
+				var idx = y * combined.size.x + x;
+				var stack = combined[idx];
 
 				var fill = 0; //accumulate bits for filled area
 				var needClear = 0; //accumulate bits that must be clear
@@ -27,7 +29,7 @@ exports = {
 						if (s.tile.fill) conflicted |= s.tile.fill & conflict;
 						if (s.tile.needClear) conflicted |= s.tile.needClear & conflict;
 						if (conflicted) {
-							s.hasProblem = true;
+							hasProblem[idx] = true;
 						}
 					});
 				}
@@ -35,7 +37,7 @@ exports = {
 		}
 
 		//Check for paths that collide in terms of ins or outs:
-		combined.forEach(function(stack){
+		combined.forEach(function(stack, idx){
 			function build_d(s) {
 				var d = 0;
 				if ('pathIn' in s.tile) {
@@ -56,7 +58,7 @@ exports = {
 			stack.forEach(function(s){
 				var d = build_d(s);
 				if (d & conflict) {
-					s.hasProblem = true;
+					hasProblem[idx] = true;
 				}
 			});
 		});
@@ -64,10 +66,7 @@ exports = {
 		//---------------------------------------
 		//Actually read out list of problems:
 		combined.forEach(function(stack, idx){
-			var hasProblem = stack.some(function(s){
-				return s.hasProblem;
-			});
-			if (hasProblem) {
+			if (hasProblem[idx]) {
 				var at = {
 					x:(idx % combined.size.x) + combined.min.x,
 					y:((idx / combined.size.x) | 0) + combined.min.y
@@ -75,6 +74,11 @@ exports = {
 				problems.push({at:at});
 			}
 		});
+
+		problems.at = function(at) {
+			var idx = at.y * combined.size.x + at.x;
+			return hasProblem[idx];
+		};
 
 		return problems;
 	}

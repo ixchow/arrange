@@ -14,7 +14,7 @@ function rot(r, pt) {
 }
 
 exports = {
-	determinePaths: function(combined) {
+	determinePaths: function(combined, problems) {
 		var paths = [];
 
 		//Start paths with sources:
@@ -42,11 +42,12 @@ exports = {
 				var next = {x:a.x + step.x, y:a.y + step.y};
 				if (next.x >= 0 && next.x < combined.size.x && next.y >= 0 && next.y < combined.size.y) {
 					//see if there is an unused pathIn in here somewhere
-					var stack = combined[next.y * combined.size.x + next.x];
+					var idx = next.y * combined.size.x + next.x;
+					var stack = combined[idx];
 					var found = null;
 					var foundForward = true;
 					stack.some(function(s){
-						if (s.hasProblem) return false;
+						if (problems.at(next)) return false;
 						if ('pathIn' in s.tile) {
 							var d = (s.r + s.tile.pathIn) % 4;
 							if (d == (a.d + 2) % 4) {
