@@ -56,5 +56,13 @@ exports = {
 	Pillar: new Tile({
 		mesh:'pillar',
 		fill:o.low | o.high
+	}),
+	Desk: new Tile({
+		mesh:'desk',
+		fill:o.low | o.high
+	}),
+	SmallDesk: new Tile({
+		mesh:'small_desk',
+		fill:o.low | o.high
 	})
 };
