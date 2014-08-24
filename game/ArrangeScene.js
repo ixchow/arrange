@@ -291,7 +291,6 @@ ArrangeScene.prototype.checkCombined = function() {
 			var step = rot(a.d, {x:1,y:0});
 			var next = {x:a.x + step.x, y:a.y + step.y};
 			if (next.x >= 0 && next.x < combined.size.x && next.y >= 0 && next.y < combined.size.y) {
-				console.log("Trying to connect in dir " + a.d + ".");
 				//see if there is an unused pathIn in here somewhere
 				var stack = combined[next.y * combined.size.x + next.x];
 				var found = null;
@@ -300,7 +299,6 @@ ArrangeScene.prototype.checkCombined = function() {
 					if (s.hasProblem) return false;
 					if ('pathIn' in s.tile) {
 						var d = (s.r + s.tile.pathIn) % 4;
-						console.log("Have dir " + d + " (in).");
 						if (d == (a.d + 2) % 4) {
 							found = s;
 							foundForward = true;
@@ -309,7 +307,6 @@ ArrangeScene.prototype.checkCombined = function() {
 						if ('pathOut' in s.tile) {
 							//s is a connecting-style path, so check reverse
 							var d = (s.r + s.tile.pathOut) % 4;
-							console.log("Have dir " + d + " (out).");
 							if (d == (a.d + 2) % 4) {
 								found = s;
 								foundForward = false;
@@ -319,7 +316,6 @@ ArrangeScene.prototype.checkCombined = function() {
 					}
 				});
 				if (found) {
-					console.log("Using", found);
 					if (found.path) {
 						//collision!
 						if (found.path.length > path.length) {
