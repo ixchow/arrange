@@ -2,15 +2,20 @@ exports = function() {
 	var tileMap = {
 		S: game.tiles.PathStart,
 		E: game.tiles.PathEnd,
-		P: game.tiles.Pillar
+		P: game.tiles.Pillar,
+		'|': game.tiles.PathStraight
 	};
 	
 	var txt = "";
-	txt += ".. .. S1 P1 P2 E2\n";
+	txt += ".. .. S1 P1 .. ..\n";
+	txt += ".. .. |1 P1 P1 ..\n";
+	txt += ".. .. |3 P1 P1 ..\n";
+	txt += ".. .. E2 P1 P1 ..\n";
 	txt += ".. .. P1 P1 P1 ..\n";
-	txt += ".. .. P1 P1 P1 ..\n";
-	txt += ".. .. P1 S2 P1 ..\n";
-	txt += ".. .. P1 P1 P1 ..\n";
+	txt += ".. .. .. .. .. ..\n";
+	txt += ".. .. .. P3 .. ..\n";
+	txt += ".. .. P3 P3 P3 ..\n";
+	txt += ".. .. .. P3 .. ..\n";
 	
 	var groups = {};
 	var y = -1;
