@@ -42,7 +42,7 @@ exports = {
 		needClear:o.low | o.high
 	}),
 	PathLeft: new Tile({
-		mesh:'path_straight',
+		mesh:'path_left',
 		pathIn:dir.w,
 		pathOut:dir.n,
 		needClear:o.low | o.high
