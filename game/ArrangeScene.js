@@ -198,10 +198,6 @@ ArrangeScene.prototype.checkCombined = function() {
 	//clear problems lists:
 	var problems = [];
 
-	this.fragments.forEach(function(f){
-		delete f.hasProblem;
-	});
-
 	//Check collision consistency:
 	for (var y = 0; y < combined.size.y; ++y) {
 		for (var x = 0; x < combined.size.x; ++x) {
@@ -226,7 +222,6 @@ ArrangeScene.prototype.checkCombined = function() {
 					if (s.tile.fill) conflicted |= s.tile.fill & conflict;
 					if (s.tile.needClear) conflicted |= s.tile.needClear & conflict;
 					if (conflicted) {
-						s.fragment.hasProblem = true;
 						s.hasProblem = true;
 					}
 				});
@@ -256,7 +251,6 @@ ArrangeScene.prototype.checkCombined = function() {
 		stack.forEach(function(s){
 			var d = build_d(s);
 			if (d & conflict) {
-				s.fragment.hasProblem = true;
 				s.hasProblem = true;
 			}
 		});
