@@ -9,9 +9,9 @@ exports = function() {
 	var txt = "";
 	txt += ".. .. S1 P1 .. ..\n";
 	txt += ".. .. |1 P1 P1 ..\n";
-	txt += ".. .. |3 P1 P1 ..\n";
-	txt += ".. .. E2 P1 P1 ..\n";
-	txt += ".. .. P1 P1 P1 ..\n";
+	txt += ".. |3 .. P1 P1 ..\n";
+	txt += ".. .. E2 P2 P2 ..\n";
+	txt += ".. .. P1 P1 P2 ..\n";
 	txt += ".. .. .. .. .. ..\n";
 	txt += ".. .. .. P3 .. ..\n";
 	txt += ".. .. P3 P3 P3 ..\n";
@@ -20,9 +20,10 @@ exports = function() {
 	var groups = {};
 	var y = -1;
 	var xt = txt.trim().split('\n').map(function (yt) {
-		var x = 0;
+		var x = -1;
 		y++;
 		return yt.split(' ').map(function(t) {
+			x++;
 			if (t == '..') return null;
 			if (!groups[t[1]]) {
 				groups[t[1]] = { tiles: [], r: 0 };
@@ -32,7 +33,6 @@ exports = function() {
 			}
 			var pt = { x: x - groups[t[1]].at.x, y: y - groups[t[1]].at.y };
 			groups[t[1]].tiles.push({ tile: tileMap[t[0]], r: 0, at: pt});
-			x++;
 		});
 	});
 	
