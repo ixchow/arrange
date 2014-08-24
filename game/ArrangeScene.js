@@ -86,6 +86,10 @@ var ArrangeScene = function(level) {
 		{r:170, g:170, b:170, a:170},
 		{r:255, g:255, b:255, a:0}
 	);
+	this.requirePulse = new game.vfx.pulse(
+		{r:200, g:50, b:0, a:170},
+		{r:255, g:0, b:0, a:0}
+	);
 	this.selectDirty = true;
 
 	return this;
@@ -135,6 +139,7 @@ ArrangeScene.prototype.resize = function() {
 ArrangeScene.prototype.update = function(elapsed) {
 	this.problemPulse.advance(elapsed);
 	this.hoverPulse.advance(elapsed*1.7);
+	this.requirePulse.advance(elapsed);
 	
 	//--- move the camera a bit just for the heck of it ---
 	this.spin += elapsed;
@@ -231,7 +236,8 @@ ArrangeScene.prototype.checkCombined = function() {
 	var combined = this.combined;
 	this.problems = game.problems.determineProblems(combined);
 	this.paths = game.paths.determinePaths(combined, this.problems);
-	this.solved = (this.paths[0].length > 10) && (this.problems.length == 0);
+	this.require_problems = game.provides_requires.check(combined);
+	this.solved = (this.paths[0].length > 10) && (this.problems.length == 0) && (this.require_problems.length == 0);
 };
 
 ArrangeScene.prototype.checkWin = function() {
@@ -387,6 +393,7 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 					y: t.at.x * dx.y + t.at.y * dy.y + f.at.y}};
 			}), MVP);
 		}
+		this.requirePulse.draw(this.require_problems, MVP);
 	}
 
 	if (!drawSelect) {
