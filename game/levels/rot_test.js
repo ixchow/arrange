@@ -20,7 +20,7 @@ exports = function() {
 		"[": { r:1, t: game.tiles.Wall },
 		"_": { r:2, t: game.tiles.Wall },
 		"]": { r:3, t: game.tiles.Wall },
-		"&": { r:0, t: game.tiles.Desk, rotate:true},
+		"&": { r:0, t: game.tiles.Desk, pivot:true},
 	};
 
 	var txt = "";

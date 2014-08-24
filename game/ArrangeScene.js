@@ -219,7 +219,7 @@ ArrangeScene.prototype.buildCombined = function() {
 			var r = (t.r + f.r) % 4;
 
 			var idx = combined.index(at);
-			combined[idx].push({r:r, tile:t.tile, fragment:f});
+			combined[idx].push({r:r, t:t, tile:t.tile, fragment:f});
 		});
 	});
 
@@ -372,8 +372,7 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 					gl.vertexAttrib3f(s.aTag.location, tag.x / 255.0, tag.y / 255.0, ti / 255.0);
 				}
 				t.tile.emit();
-/*
-				if (t.rotate || true) {
+				if (t.t.pivot) {
 					var xf = new Mat4(
 						0.5, 0.0, 0.0, 0.0,
 						0.0, 0.5, 0.0, 0.0,
@@ -384,10 +383,8 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 						gl.vertexAttrib3f(s.aTag.location, tag.x / 255.0, tag.y / 255.0, ti / 255.0);
 					}
 					gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
-					meshes.icons.rotate_ccw.emit();
+					meshes.icons.rotate.emit();
 				}
-*/
-				
 			});
 
 		}
@@ -626,9 +623,9 @@ ArrangeScene.prototype.setHoverInfo = function(x, y) {
 			var fragment = stack[idx].fragment;
 			if (!fragment.fixed) {
 				//store info about hovered fragment:
-				hoverInfo.stackItem = stack[idx]; //TODO: figure out if we want the stack item or the actual tile for rotation.
+				hoverInfo.t = stack[idx].t;
 				hoverInfo.fragment = fragment;
-				var mouse3d = this.pixelToPlane(x,y,0.0);
+				var mouse3d = this.pixelToPlane(x,y,this.hoverInfo.z);
 				hoverInfo.mouseToFragment = {x:fragment.at.x - mouse3d.x, y:fragment.at.y - mouse3d.y};
 			}
 		}
@@ -692,8 +689,13 @@ ArrangeScene.prototype.mouse = function(x, y, isDown) {
 			if (this.hoverInfo.scriptTrigger) {
 				console.log("Would play script '" + this.hoverInfo.scriptTrigger.name + "' here.");
 			} else if (this.hoverInfo.fragment) {
-				//TODO: rotation check here!
-				this.dragInfo = this.hoverInfo;
+				if (this.hoverInfo.t.pivot) {
+					console.log("Rotating");
+					rot_fragment(1, this.hoverInfo.fragment, this.hoverInfo.at);
+					this.buildCombined();
+				} else {
+					this.dragInfo = this.hoverInfo;
+				}
 			} else {
 				var mouse3d = this.mouseToPlane(0.0);
 				this.dragInfo = {
@@ -706,15 +708,6 @@ ArrangeScene.prototype.mouse = function(x, y, isDown) {
 			}
 		}
 		this.mouseDown = true;
-			/*
-			rotate code, for use in a sec:
-				var pivot = {
-					x:this.hoverInfo.at.x + this.combined.min.x,
-					y:this.hoverInfo.at.y + this.combined.min.y
-				};
-				rot_fragment(1, this.hoverInfo.fragment, pivot);
-				this.buildCombined();
-			*/
 	}
 };
 
