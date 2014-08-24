@@ -193,17 +193,19 @@ ArrangeScene.prototype.buildCombined = function() {
 };
 
 ArrangeScene.prototype.checkCombined = function() {
+	var combined = this.combined;
+
 	//clear problems lists:
-	this.problems = [];
+	var problems = [];
 
 	this.fragments.forEach(function(f){
 		delete f.hasProblem;
 	});
 
 	//Check collision consistency:
-	for (var y = 0; y < this.combined.size.y; ++y) {
-		for (var x = 0; x < this.combined.size.x; ++x) {
-			var stack = this.combined[y * this.combined.size.x + x];
+	for (var y = 0; y < combined.size.y; ++y) {
+		for (var x = 0; x < combined.size.x; ++x) {
+			var stack = combined[y * combined.size.x + x];
 
 			var fill = 0; //accumulate bits for filled area
 			var needClear = 0; //accumulate bits that must be clear
@@ -233,7 +235,7 @@ ArrangeScene.prototype.checkCombined = function() {
 	}
 
 	//Check for paths that collide in terms of ins or outs:
-	this.combined.forEach(function(stack){
+	combined.forEach(function(stack){
 		function build_d(s) {
 			var d = 0;
 			if ('pathIn' in s.tile) {
@@ -264,10 +266,8 @@ ArrangeScene.prototype.checkCombined = function() {
 	// ...let's chase them out to see if they are connected:
 
 	//Start paths with sources:
-	this.paths = []
-	var paths = this.paths;
-	var combined = this.combined;
-	this.combined.forEach(function(stack, idx){
+	var paths = [];
+	combined.forEach(function(stack, idx){
 		stack.forEach(function(s, si){
 			if (('pathOut' in s.tile) && !('pathIn' in s.tile)) {
 				var d = (s.r + s.tile.pathOut) % 4;
@@ -361,8 +361,7 @@ ArrangeScene.prototype.checkCombined = function() {
 
 	//---------------------------------------
 	//Actually read out list of problems:
-	problems = this.problems;
-	this.combined.forEach(function(stack, idx){
+	combined.forEach(function(stack, idx){
 		var hasProblem = stack.some(function(s){
 			return s.hasProblem;
 		});
@@ -375,6 +374,8 @@ ArrangeScene.prototype.checkCombined = function() {
 		}
 	});
 
+	this.paths = paths;
+	this.problems = problems;
 };
 
 //These should probably get moved:
