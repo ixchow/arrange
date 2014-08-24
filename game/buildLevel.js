@@ -11,6 +11,9 @@ exports = function(tileMap, txt) {
 			if (!groups[t[1]]) {
 				groups[t[1]] = { tiles: [], r: 0 };
 			}
+			if (t[1] == '.') {
+				groups[t[1]].fixed = true;
+			}
 			if (!groups[t[1]].at) {
 				groups[t[1]].at = { x: x, y: y };
 			}

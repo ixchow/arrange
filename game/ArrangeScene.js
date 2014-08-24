@@ -693,13 +693,15 @@ ArrangeScene.prototype.setHoverInfo = function(x, y) {
 
 			var fragment = tiles[idx].fragment;
 			//var tile = tiles[idx].tile;
-			this.hoverInfo = {
-				at:{x:tag[0], y:tag[1]},
-				z:mouse3d.z,
-				fragment:fragment,
-				//tile:tile,
-				mouseToFragment:{x:fragment.at.x - mouse3d.x, y:fragment.at.y - mouse3d.y}
-			};
+			if (!fragment.fixed) {
+				this.hoverInfo = {
+					at:{x:tag[0], y:tag[1]},
+					z:mouse3d.z,
+					fragment:fragment,
+					//tile:tile,
+					mouseToFragment:{x:fragment.at.x - mouse3d.x, y:fragment.at.y - mouse3d.y}
+				};
+			}
 		}
 	}
 
