@@ -20,16 +20,17 @@ exports = function(tileMap, txt) {
 			var pt = { x: x - groups[t[1]].at.x, y: y - groups[t[1]].at.y };
 			var tile = tileMap[t[0]];
 			if (!tile) {
+				console.error("Can't parse: " + t);
 				throw new Error(t);
 			}
 			groups[t[1]].tiles.push({ tile: tile.t, r: tile.r, at: pt});
 		});
 	});
 	
-	var newArray = []
+	var fragments = []
 	for (var key in groups) {
-	    newArray.push(groups[key]);
+	    fragments.push(groups[key]);
 	}
-	
-	return newArray;
+
+	return fragments;
 };

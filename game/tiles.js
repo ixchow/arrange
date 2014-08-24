@@ -6,9 +6,6 @@ var Tile = function(params) {
 };
 
 Tile.prototype.emit = function() {
-	if (typeof(this.mesh) == 'string') {
-		this.mesh = meshes.tiles[this.mesh];
-	}
 	this.mesh.emit();
 };
 
@@ -47,19 +44,17 @@ exports = {
 		pathOut:dir.n,
 		needClear:o.low | o.high
 	}),
-	PathRight: new Tile({
-		mesh:'path_straight',
-		pathIn:dir.w,
-		pathOut:dir.s,
-		needClear:o.low | o.high
-	}),
 	Pillar: new Tile({
 		mesh:'pillar',
 		fill:o.low | o.high
 	}),
 	Blackboard: new Tile({
-		mesh:'blackboard',
+		mesh:'wall',
 		fill: o.high
+	}),
+	Wall: new Tile({
+		mesh:'wall',
+		fill: o.high | o.low,
 	}),
 	Chair: new Tile({
 		mesh:'chair',
@@ -81,5 +76,27 @@ exports = {
 	SmallDesk: new Tile({
 		mesh:'small_desk',
 		fill:o.low | o.high
+	}),
+	Bed: new Tile({
+		mesh:'desk',
+		fill:o.low,
+		needClear:o.low | o.high,
 	})
+};
+
+exports.linkTiles = function() {
+	for (var tn in exports) {
+		var t = exports[tn];
+		if (t instanceof Tile) {
+			//hook up meshes:
+			if (typeof(t.mesh) == 'string') {
+				var name = t.mesh;
+				t.mesh = meshes.tiles[name];
+				if (t.mesh === undefined) {
+					throw "Missing tile mesh '" + name + "'";
+				}
+			}
+		}
+	}
+	exports.linkTiles = function () { };
 };

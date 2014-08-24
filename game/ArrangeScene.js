@@ -102,6 +102,9 @@ ArrangeScene.prototype.enter = function() {
 ArrangeScene.prototype.leave = function() {
 };
 
+ArrangeScene.prototype.playScript = function(script) {
+};
+
 ArrangeScene.prototype.resize = function() {
 	if (!selectFb) {
 		selectFb = gl.createFramebuffer();
