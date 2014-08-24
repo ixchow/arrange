@@ -23,7 +23,16 @@ exports = function(tileMap, txt) {
 				console.error("Can't parse: " + t);
 				throw new Error(t);
 			}
-			groups[t[1]].tiles.push({ tile: tile.t, r: tile.r, at: pt});
+			//copy all properties from the tilemap (will get 'tag:' if it exists)
+			var tileClone = {
+				at:pt,
+				r:tile.r,
+				tile:tile.t
+			};
+			if (tile.tag) {
+				tileClone.tag = tile.tag;
+			}
+			groups[t[1]].tiles.push(tileClone);
 		});
 	});
 	

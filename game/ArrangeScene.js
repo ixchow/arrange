@@ -3,22 +3,7 @@ var Mat4 = engine.Mat4;
 
 var TagZScale = 0.2;
 
-//Rotations are 0,1,2,3 corresponding to rotating CC in 90-degree increments.
-//rot() performs rotations around the center of tile (0,0)
-function rot(r, pt) {
-	if (r < 0) r = (r % 4) + 4;
-	else if (r >= 4) r = r % 4;
-
-	if (r == 0) {
-		return {x:pt.x, y:pt.y};
-	} else if (r == 1) {
-		return {x:-pt.y, y:pt.x};
-	} else if (r == 2) {
-		return {x:-pt.x, y:-pt.y};
-	} else if (r == 3) {
-		return {x:pt.y, y:-pt.x};
-	}
-}
+var rot = function() { return game.utility.rot.apply(this, arguments); }
 
 function rot_fragment(r, fragment, pivot) {
 	if (!pivot) {
@@ -53,16 +38,26 @@ function rot_fragment(r, fragment, pivot) {
 	fragment.at.y += pivot.y - next.y;
 }
 
-var ArrangeScene = function(buildLevel) {
-	var level = buildLevel();
+var ArrangeScene = function(buildLevel, previousStoryState) {
+	this.level = buildLevel();
 
 	//The first tile in every fragment is the 'key' to the fragment,
 	//and generally the point of interaction for that fragment.
 	//It should be located at (0,0), since fragments rotate around (0,0)
-	this.fragments = level.fragments;
+	this.fragments = this.level.fragments;
+	console.log(this.fragments); //DEBUG
+
+	this.localState = {};
+	this.storyState = {};
+	if (previousStoryState) {
+		for (prop in previousStoryState) {
+			this.storyState[prop] = previousStoryState[prop];
+		}
+	}
 
 	this.currentFragment = null;
 
+	//builds this.combined, populates this.problems, and updates this.scriptTriggers:
 	this.buildCombined();
 
 	this.camera = {
@@ -87,8 +82,6 @@ var ArrangeScene = function(buildLevel) {
 		{r:255, g:255, b:255, a:0}
 	);
 	this.selectDirty = true;
-
-	level.enter && level.enter(this);
 
 	return this;
 };
@@ -176,9 +169,11 @@ ArrangeScene.prototype.buildCombined = function() {
 	//First figure out the size of grid we need:
 	var min = {x:Infinity, y:Infinity};
 	var max = {x:-Infinity, y:-Infinity};
+	console.log("In build: ", this.fragments); //DEBUG
 	this.fragments.forEach(function(f){
 		f.tiles.forEach(function(t){
 			var at = rot(f.r, t.at);
+			console.log(at, rot); //DEBUG
 			at.x += f.at.x;
 			at.y += f.at.y;
 			min.x = Math.min(min.x, at.x);
@@ -224,6 +219,10 @@ ArrangeScene.prototype.buildCombined = function() {
 
 	//Check consistency:
 	this.checkCombined();
+
+	//Let level scripts update triggers, if needed:
+	this.scriptTriggers = [];
+	this.level.addScripTriggers && this.level.addScriptTriggers(this, null, null);
 
 	//building combined changes the scene, so mark select as dirty:
 	this.selectDirty = true;
