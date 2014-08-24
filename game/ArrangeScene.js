@@ -197,9 +197,6 @@ ArrangeScene.prototype.checkCombined = function() {
 		delete f.hasProblem;
 	});
 
-	//Check path consistency:
-	//TODO
-
 	//Check collision consistency:
 	for (var y = 0; y < this.combined.size.y; ++y) {
 		for (var x = 0; x < this.combined.size.x; ++x) {
@@ -228,10 +225,136 @@ ArrangeScene.prototype.checkCombined = function() {
 					if (s.tile.needClear) conflicted |= s.tile.needClear & conflict;
 					if (conflicted) {
 						s.fragment.hasProblem = true;
+						s.hasProblem = true;
 					}
 				});
 			}
 		}
+	}
+
+	//Check for paths that collide in terms of ins or outs:
+	this.combined.forEach(function(stack){
+		function build_d(s) {
+			var d = 0;
+			if ('pathIn' in s.tile) {
+				d |= 1 << ((s.tile.pathIn + s.r) % 4);
+			}
+			if ('pathOut' in s.tile) {
+				d |= 1 << ((s.tile.pathOut + s.r) % 4);
+			}
+			return d;
+		}
+		var used = 0;
+		var conflict = 0;
+		stack.forEach(function(s){
+			var d = build_d(s);
+			conflict |= used & d;
+			used |= d;
+		});
+		stack.forEach(function(s){
+			var d = build_d(s);
+			if (d & conflict) {
+				s.fragment.hasProblem = true;
+				s.hasProblem = true;
+			}
+		});
+	});
+
+	//Remaining path parts aren't colliding, at least.
+	// ...let's chase them out to see if they are connected:
+
+	//Start paths with sources:
+	var paths = [];
+	var combined = this.combined;
+	this.combined.forEach(function(stack, idx){
+		stack.forEach(function(s, si){
+			if (('pathOut' in s.tile) && !('pathIn' in s.tile)) {
+				var d = (s.r + s.tile.pathOut) % 4;
+				paths.push([{
+					x:idx % combined.size.x,
+					y:(idx / combined.size.y) | 0,
+					s:s,
+					d:d
+				}]);
+				s.path = paths[paths.length-1];
+			}
+		});
+	});
+
+	//While paths aren't finished, step each still-unfinished path:
+	var active = paths;
+	while (active.length) {
+		active = active.filter(function(path){
+			var a = path[path.length-1];
+			var step = rot(a.d, {x:1,y:0});
+			var next = {x:a.x + step.x, y:a.y + step.y};
+			if (next.x >= 0 && next.x < combined.size.x && next.y >= 0 && next.y < combined.size.y) {
+				//see if there is an unused pathIn in here somewhere
+				var stack = combined[next.y * combined.size.x + next.x];
+				var found = null;
+				var foundForward = true;
+				stack.some(function(s){
+					if (s.hasProblem) return false;
+					if ('pathIn' in s.tile) {
+						var d = (s.r + s.tile.pathIn) % 4;
+						if ((d + a.d) % 4 == 2) {
+							found = s;
+							foundForward = true;
+							return true;
+						}
+						if ('pathOut' in s.tile) {
+							//s is a connecting-style path, so check reverse
+							var d = (s.r + s.tile.pathOut) % 4;
+							if ((d + a.d) % 4 == 2) {
+								found = s;
+								foundForward = false;
+								return true;
+							}
+						}
+					}
+				});
+				if (found) {
+					if (found.path) {
+						//collision!
+						if (found.path.length > path.length) {
+							//if other path is longer, overlap on this tile:
+							path.push({
+								x:next.x,
+								y:next.y,
+								s:found
+							});
+						}
+						return false;
+					} else {
+						found.path = path;
+						if ('pathOut' in found.tile) {
+							var d;
+							if (foundForward) {
+								d = (found.tile.pathOut + found.r) % 4;
+							} else {
+								d = (found.tile.pathIn + found.r) % 4;
+							}
+							path.push({
+								x:next.x,
+								y:next.y,
+								s:found,
+								d:d
+							});
+							return true;
+						} else {
+							//end of the line at a sink.
+							path.push({
+								x:next.x,
+								y:next.y,
+								s:found
+							});
+							return false;
+						}
+					}
+				}
+			}
+			return false;
+		});
 	}
 
 };
