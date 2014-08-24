@@ -35,6 +35,7 @@ Object.defineProperty(engine, "CurrentScene", {
 //----------------------------------------------------
 
 exports.init = function(onstart) {
+	engine.music.init();
 
 	//--------------------------
 	//initialize canvas and WebGL:
