@@ -74,7 +74,8 @@ exports = {
 	}),
 	Chair: new Tile({
 		mesh:'chair',
-		fill:o.low
+		fill:o.low,
+		requires: { n: 'desk' }
 	}),
 	HamsterCage: new Tile({
 		mesh:'hamster_cage',
@@ -87,7 +88,8 @@ exports = {
 	}),
 	Desk: new Tile({
 		mesh:'desk',
-		fill:o.low | o.high
+		fill:o.low | o.high,
+		provides: { n: 'desk', s: 'desk', e: 'desk', w: 'desk' }
 	}),
 	SmallDesk: new Tile({
 		mesh:'small_desk',
