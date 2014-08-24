@@ -11,7 +11,7 @@ exports = function() {
 		H: { r: 0, t: game.tiles.HamsterCage },
 		h: { r: 0, t: game.tiles.Hamster },
 		D: { r: 0, t: game.tiles.Desk },
-		B: { r: 0, t: game.tiles.Pillar },
+		B: { r: 0, t: game.tiles.Blackboard },
 		d: { r: 0, t: game.tiles.SmallDesk },
 		c: { r: 0, t: game.tiles.Chair },
 		k: { r: 0, t: game.tiles.Pillar }
