@@ -518,13 +518,17 @@ ArrangeScene.prototype.mouse = function(x, y, isDown) {
 	this.mouse2d = {x:x, y:y};
 
 	if (!isDown && this.mouseDown) {
+		var wasDrag = false;
 		//release drag:
 		if (this.dragInfo) {
+			wasDrag = !!this.dragInfo.fragment;
 			this.updateDrag();
 			this.dragInfo = null;
 		}
 		this.mouseDown = false;
-		this.checkWin();
+		if (wasDrag) {
+			this.checkWin();
+		}
 	}
 
 	//if we aren't dragging, adjust hover info:
