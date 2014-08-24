@@ -8,6 +8,9 @@ exports = function() {
 	var txt = "";
 	txt += ".. .. S1 P1 P2 E2\n";
 	txt += ".. .. P1 P1 P1 ..\n";
+	txt += ".. .. P1 P1 P1 ..\n";
+	txt += ".. .. P1 S2 P1 ..\n";
+	txt += ".. .. P1 P1 P1 ..\n";
 	
 	var groups = {};
 	var y = -1;
