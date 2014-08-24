@@ -21,5 +21,5 @@ exports = function() {
 	txt += "v2 D3 |4 J5\n"
 	txt += "J2 r7 u4 L6\n"
 
-	return game.buildLevel2(tileMap, txt);
+	return game.buildLevel(tileMap, txt);
 };

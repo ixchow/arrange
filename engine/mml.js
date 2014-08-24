@@ -6,6 +6,11 @@ exports = function(mml) {
   mml = mml.replace(/p/g, 'r');
 	var mmls = mml.split(';');
 	return function(synth) {
-		return T("mml", {mml: mmls}, synth.in);
+		var gen = T("mml", {mml: mmls}, synth.in);
+		gen.on('ended', function() {
+			gen.stop();
+			gen.start();
+		});
+		return gen;
   };
 }
