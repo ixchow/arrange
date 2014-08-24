@@ -9,9 +9,9 @@ exports = function() {
 		'[': { r: 0, t: game.tiles.PathRight },
 		']': { r: 0, t: game.tiles.PathRight },
 		H: { r: 0, t: game.tiles.Pillar },
-		D: { r: 0, t: game.tiles.Pillar },
+		D: { r: 0, t: game.tiles.Desk },
 		B: { r: 0, t: game.tiles.Pillar },
-		d: { r: 0, t: game.tiles.Pillar },
+		d: { r: 0, t: game.tiles.SmallDesk },
 		k: { r: 0, t: game.tiles.Pillar }
 	};
 	
