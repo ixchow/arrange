@@ -58,7 +58,7 @@ exports = {
 		fill:o.low | o.high
 	}),
 	Blackboard: new Tile({
-		mesh: 'pillar', // TODO
+		mesh: 'blackboard',
 		fill: o.high
 	}),
 	Chair: new Tile({
@@ -66,7 +66,7 @@ exports = {
 		fill:o.low
 	}),
 	HamsterCage: new Tile({
-		mesh:'pillar', // TODO
+		mesh:'small_desk', // TODO
 		fill:o.low | o.high,
 		requires: { c: 'hamster' }
 	}),
