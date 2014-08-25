@@ -81,6 +81,50 @@ var ArrangeScene = function(levelPath) {
 	return this;
 };
 
+//Helper which builds a mesh representing a bunch of locations.
+// the mesh will have a 'emit()' method.
+function buildFloor(locs) {
+	
+	var verts2 = [];
+	locs.forEach(function(l){
+		verts2.push(l.x - 0.5, l.y - 0.5);
+		verts2.push(l.x - 0.5, l.y - 0.5);
+		verts2.push(l.x - 0.5, l.y + 0.5);
+		verts2.push(l.x + 0.5, l.y - 0.5);
+		verts2.push(l.x + 0.5, l.y + 0.5);
+		verts2.push(l.x + 0.5, l.y + 0.5);
+	});
+
+	var mesh = {
+		verts2:new Float32Array(verts2),
+		emit:function() {
+			var s = gl.getParameter(gl.CURRENT_PROGRAM);
+
+			var vertsBuffer = gl.createBuffer();
+			gl.bindBuffer(gl.ARRAY_BUFFER, vertsBuffer);
+			gl.bufferData(gl.ARRAY_BUFFER, this.verts2, gl.STREAM_DRAW);
+			gl.vertexAttribPointer(s.aVertex.location, 2, gl.FLOAT, false, 0, 0);
+			gl.enableVertexAttribArray(s.aVertex.location);
+
+			var colorsBuffer = null;
+			if (s.aColor) {
+				gl.vertexAttrib4f(s.aColor.location, 1.0, 1.0, 1.0, 1.0);
+			}
+			if (s.aNormal) {
+				gl.vertexAttrib3f(s.aColor.location, 0.0, 0.0, 1.0);
+			}
+
+			gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.verts2.length / 2);
+
+			gl.disableVertexAttribArray(s.aVertex.location);
+			gl.deleteBuffer(vertsBuffer);
+			delete vertsBuffer;
+		}
+	};
+
+	return mesh;
+}
+
 ArrangeScene.prototype.setLevelPath = function(levelPath) {
 	this.levelPath = levelPath;
 
@@ -105,11 +149,14 @@ ArrangeScene.prototype.setLevelPath = function(levelPath) {
 	this.fragments = this.level.fragments;
 	//(TODO: copy fragment positions from localState as needed)
 
-	//set up animation state for all the 'rotate' actions:
+	//set up graphics state for all the fragments:
 	this.fragments.forEach(function(f){
+		//random initial rotation for pivots:
 		f.pivots.forEach(function(p){
 			p.spin = Math.random() * 2.0 * Math.PI;
 		});
+		//build floor:
+		f.floor = buildFloor(f.tiles.map(function(t){return t.at;}));
 	});
 
 
@@ -370,6 +417,7 @@ ArrangeScene.prototype.buildCombined = function() {
 
 	//building combined changes the scene, so mark select as dirty:
 	this.selectDirty = true;
+	delete this.floor;
 };
 
 ArrangeScene.prototype.updateScriptTriggers = function() {
@@ -436,7 +484,6 @@ ArrangeScene.prototype.draw = function() {
 };
 
 ArrangeScene.prototype.drawHelper = function(drawSelect) {
-
 	if (drawSelect) {
 		gl.bindFramebuffer(gl.FRAMEBUFFER, selectFb);
 	}
@@ -469,6 +516,46 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 
 	if (drawSelect) {
 		gl.uniform3f(s.uZ.location, 0.0, 0.0, 0.5 * TagZScale);
+	}
+
+	//Draw floor under everything:
+	if (!drawSelect) {
+		gl.enable(gl.BLEND);
+		gl.disable(gl.DEPTH_TEST);
+		if (!this.floor) {
+			var locs = [];
+			for (var x = 0; x < this.combined.size.x; ++x) {
+				for (var y = 0; y < this.combined.size.y; ++y) {
+					if (this.combined[y * this.combined.size.x + x].length) {
+						locs.push({
+							x:x + this.combined.min.x,
+							y:y + this.combined.min.y
+						});
+					}
+				}
+			}
+			this.floor = buildFloor(locs);
+		}
+		gl.uniformMatrix4fv(s.uMVP.location, false, MVP);
+		gl.uniform4f(s.uTint.location, 0.0, 0.0, 0.0, 1.0);
+		this.floor.emit();
+
+		if (this.hoverInfo && this.hoverInfo.fragment) {
+			var f = this.hoverInfo.fragment;
+			var xd = rot(f.r,{x:1, y:0});
+			var yd = rot(f.r,{x:0, y:1});
+			var xf = new Mat4(
+				xd.x, xd.y, 0.0, 0.0,
+				yd.x, yd.y, 0.0, 0.0,
+				0.0, 0.0, 0.5, 0.0,
+				f.at.x, f.at.y, 0.0, 1.0
+			);
+			gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
+			gl.uniform4f(s.uTint.location, 0.0, 1.0, 0.0, 1.0);
+			f.floor.emit();
+		}
+		gl.disable(gl.BLEND);
+		gl.enable(gl.DEPTH_TEST);
 	}
 
 	//Figure out direction x and y axes point in, so we can draw back-to-front:
