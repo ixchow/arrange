@@ -497,7 +497,7 @@ ArrangeScene.prototype.update = function(elapsed) {
 		f.pulse -= elapsed * f.pulseSpeed;
 		if (f.pulse < 0.0) {
 			f.pulse = 1.0 + Math.random();
-			f.pulseSpeed = Math.pow(2.0, 2.0 * Math.random() - 1.0);
+			f.pulseSpeed = 0.7 * Math.pow(2.0, Math.random() - 0.5);
 		}
 	});
 
@@ -711,13 +711,13 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 			);
 			gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
 			if (f === selected) {
-				gl.uniform4f(s.uTint.location, 1.0, 1.0, 1.0, 0.7);
+				gl.uniform4f(s.uTint.location, 1.0, 1.0, 1.0, 0.5);
 			} else {
 				var p = 0.0;
 				if (f.pulse < 0.8) {
 					p = 0.5 - Math.cos(f.pulse / 0.8 * Math.PI * 2.0) * 0.5;
 				}
-				gl.uniform4f(s.uTint.location, 1.0, 1.0, 1.0, p * 0.2);
+				gl.uniform4f(s.uTint.location, 1.0, 1.0, 1.0, p * 0.2 + 0.1);
 			}
 			f.floor.emit();
 		});
