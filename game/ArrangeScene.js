@@ -104,6 +104,15 @@ ArrangeScene.prototype.setLevelPath = function(levelPath) {
 	this.level = buildLevel();
 	this.fragments = this.level.fragments;
 	//(TODO: copy fragment positions from localState as needed)
+
+	//set up animation state for all the 'rotate' actions:
+	this.fragments.forEach(function(f){
+		f.pivots.forEach(function(p){
+			p.spin = Math.random() * 2.0 * Math.PI;
+		});
+	});
+
+
 	//builds this.combined, populates this.problems, and updates this.scriptTriggers:
 	this.buildCombined();
 
@@ -263,6 +272,8 @@ ArrangeScene.prototype.update = function(elapsed) {
 		this.updateScriptTriggers();
 	}
 
+	//--- update script trigger spinning animation ---
+
 	var selected = null;
 	if (this.hoverInfo && this.hoverInfo.scriptTrigger) {
 		selected = this.hoverInfo.scriptTrigger;
@@ -273,6 +284,21 @@ ArrangeScene.prototype.update = function(elapsed) {
 		if (st === selected) fac = 2.5;
 		st.spin += fac * elapsed;
 		if (st.spin > 2.0 * Math.PI) st.spin = st.spin % (2.0 * Math.PI);
+	});
+
+	//--- update rotate icon spinning animation ---
+
+	var selected = null;
+	if (this.hoverInfo && this.hoverInfo.pivot) {
+		selected = this.hoverInfo.pivot;
+	}
+	this.fragments.forEach(function(f){
+		f.pivots.forEach(function(p){
+			var fac = 1.0;
+			if (p === selected) fac = 2.5;
+			p.spin += fac * elapsed;
+			if (p.spin > 2.0 * Math.PI) p.spin = p.spin % (2.0 * Math.PI);
+		});
 	});
 
 }
@@ -504,25 +530,45 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 					}
 				}
 				t.tile.emit();
-				//draw rotation action icons:
-				if (!this.scriptPlayer && t.t.pivot) {
-					var xf = new Mat4(
-						0.5, 0.0, 0.0, 0.0,
-						0.0, 0.5, 0.0, 0.0,
-						0.0, 0.0, 0.5, 0.0,
-						at.x, at.y, 0.0, 1.0
-					);
-					if (drawSelect) {
-						gl.vertexAttrib3f(s.aTag.location, tag.x / 255.0, tag.y / 255.0, ti / 255.0);
-					} else {
-						gl.uniform4f(s.uTint.location, 1.0, 1.0, 1.0, 0.5);
-					}
-					gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
-					meshes.icons.rotate.emit();
-				}
 			});
 
 		}
+	}
+
+	var selectTagMin = this.selectTagMin;
+
+	//Draw action icons (pivots):
+	if (!this.scriptPlayer) {
+		this.fragments.forEach(function(f){
+			var xd = rot(f.r, {x:1,y:0});
+			var yd = rot(f.r, {x:0,y:1});
+			f.pivots.forEach(function(p){
+				var at = {
+					x:p.x * xd.x + p.y * yd.x + f.at.x,
+					y:p.x * xd.y + p.y * yd.y + f.at.y
+				};
+
+				var rx = {x:Math.cos(p.spin), y:Math.sin(p.spin)};
+				var ry = {x:-rx.y, y:rx.x};
+				var xf = new Mat4(
+					0.5 * rx.x, 0.5 * rx.y, 0.0, 0.0,
+					0.5 * ry.x, 0.5 * ry.y, 0.0, 0.0,
+					0.0, 0.0, 0.5, 0.0,
+					at.x, at.y, 0.0, 1.0
+				);
+				gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
+				if (drawSelect) {
+					var tag = {
+						x:at.x - selectTagMin.x,
+						y:at.y - selectTagMin.y
+					};
+					gl.vertexAttrib3f(s.aTag.location, tag.x / 255.0, tag.y / 255.0, 253 / 255.0);
+				} else {
+					gl.uniform4f(s.uTint.location, 1.0, 1.0, 1.0, 1.0);
+				}
+				meshes.icons.rotate.emit();
+			});
+		});
 	}
 
 	//Draw action icons (script triggers):
@@ -531,7 +577,6 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 		if (this.hoverInfo && this.hoverInfo.scriptTrigger) {
 			selected = this.hoverInfo.scriptTrigger;
 		}
-		var selectTagMin = this.selectTagMin;
 		this.scriptTriggers.forEach(function(st){
 			//TODO: if script has played already, skip drawing
 
@@ -599,7 +644,7 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 		gl.uniformMatrix4fv(s.uMVP.location, false, MVP);
 		this.problemPulse.draw(this.problems, MVP);
 		if (this.hoverInfo) {
-			if (this.hoverInfo.scriptTrigger || (this.hoverInfo.t && this.hoverInfo.t.pivot)) {
+			if (this.hoverInfo.scriptTrigger || this.hoverInfo.pivot) {
 				this.hoverPulse.draw([{at:this.hoverInfo.at}], MVP);
 			}
 		}
@@ -735,19 +780,38 @@ ArrangeScene.prototype.setHoverInfo = function(x, y) {
 		hoverInfo.z = 0.0;
 	}
 
-	this.scriptTriggers.some(function(st){
-		//TODO: check if script trigger has been played
-		if (st.at.x == hoverInfo.at.x && st.at.y == hoverInfo.at.y && idx == 254) {
-			hoverInfo.scriptTrigger = st;
-			return true;
-		}
-		return false;
-	});
+	if (idx == 254) { //script trigger
+		var found = this.scriptTriggers.some(function(st){
+			//TODO: check if script trigger has been played
+			if (st.at.x == hoverInfo.at.x && st.at.y == hoverInfo.at.y) {
+				hoverInfo.scriptTrigger = st;
+				return true;
+			}
+			return false;
+		});
+		if (found) return;
+		idx = 255; //otherwise 'just find something'
+	}
 
-	//If there is a script trigger in this tile, it takes precedence over
-	// all other actions:
-	if (hoverInfo.scriptTrigger) {
-		return;
+	if (idx == 253) { //fragment pivot
+		var found = this.fragments.some(function(f){
+			var xd = rot(f.r,{x:1,y:0});
+			var yd = rot(f.r,{x:0,y:1});
+			return f.pivots.some(function(p){
+				var at = {
+					x: p.x * xd.x + p.y * yd.x + f.at.x,
+					y: p.x * xd.y + p.y * yd.y + f.at.y
+				};
+				if (at.x == hoverInfo.at.x && at.y == hoverInfo.at.y) {
+					hoverInfo.fragment = f;
+					hoverInfo.pivot = p;
+					return true;
+				}
+				return false;
+			});
+		});
+		if (found) return;
+		idx = 255; //otherwise 'just find something'
 	}
 
 	//See if there is a fragment under this hover:
@@ -772,7 +836,6 @@ ArrangeScene.prototype.setHoverInfo = function(x, y) {
 			var fragment = stack[idx].fragment;
 			if (!fragment.fixed) {
 				//store info about hovered fragment:
-				hoverInfo.t = stack[idx].t;
 				hoverInfo.fragment = fragment;
 				var mouse3d = this.pixelToPlane(x,y,this.hoverInfo.z);
 				hoverInfo.mouseToFragment = {x:fragment.at.x - mouse3d.x, y:fragment.at.y - mouse3d.y};
@@ -853,7 +916,7 @@ ArrangeScene.prototype.mouse = function(x, y, isDown) {
 				//stash this reference for later use:
 				this.scriptPlayer.trigger = this.hoverInfo.scriptTrigger;
 			} else if (this.hoverInfo.fragment) {
-				if (this.hoverInfo.t.pivot) {
+				if (this.hoverInfo.pivot) {
 					console.log("Rotating");
 					rot_fragment(1, this.hoverInfo.fragment, this.hoverInfo.at);
 					this.buildCombined();
