@@ -8,25 +8,29 @@ exports = function() {
 		'{': { r: 2, t: game.tiles.PathLeft },
 		'[': { r: 3, t: game.tiles.PathLeft },
 		']': { r: 0, t: game.tiles.PathLeft },
+		')': { r: 1, t: game.tiles.Wall },
 		H: { r: 0, t: game.tiles.HamsterCage, tag: 'cage' },
 		h: { r: 0, t: game.tiles.Hamster, tag: 'hamster' },
 		D: { r: 0, t: game.tiles.Desk },
 		B: { r: 0, t: game.tiles.Blackboard },
 		d: { r: 0, t: game.tiles.SmallDesk },
-		c: { r: 0, t: game.tiles.Chair },
-		k: { r: 0, t: game.tiles.Pillar }
+		j: { r: 0, t: game.tiles.SmallDesk, tag: 'jamie' },
+		c: { r: 0, t: game.tiles.Chair, tag: 'chair' },
+		k: { r: 0, t: game.tiles.Pillar },
+		K: { r: 0, t: game.tiles.Pillar, tag: 'bookshelf' }
 	};
 	
 	var txt = "";
-	txt += "H5 .. B1 B1 B2 B2 .. .. .. ..\n";
+	txt += ".. .. .. .. B2 B2 .. .. .. ..\n";
+	txt += "H5 .. B1 B1 .. .. .. .. .. ).\n";
 	txt += "{5 -5 D1 D1 D1 .. {4 -4 -. E.\n";
-	txt += "h1 .. D1 D1 D1 .. |4 .. .. ..\n";
-	txt += ".. .. -6 -6 -6 -6 ]4 .. .. ..\n";
-	txt += "|. d. .. .. c3 .. .. .. k. ..\n";
-	txt += "|. .. .. .. .. .. .. .. k. ..\n";
-	txt += "|. d. .. d2 .. d2 .. .. k. ..\n";
-	txt += "[. S. .. .. .. .. .. .. k. ..\n";
-	txt += ".. .. .. .. d3 .. d3 .. .. ..\n";
+	txt += "h1 .. D1 D1 D1 .. |4 .. .. ).\n";
+	txt += ".. .. -6 -6 -6 -6 ]4 .. .. ).\n";
+	txt += "|. d. .. .. c3 .. .. .. k. ).\n";
+	txt += "|. .. .. d2 .. j2 .. .. k. ).\n";
+	txt += "|. d. .. .. .. .. .. .. K. ).\n";
+	txt += "[. S. .. .. .. .. .. .. k. ).\n";
+	txt += ".. .. .. .. d3 .. d3 .. .. ).\n";
 
 	var level = game.buildLevel(tileMap, txt);
 	
@@ -51,11 +55,68 @@ exports = function() {
 	level.addScriptTriggers = function(arrange) {
 		var hamsterTag = arrange.findTag("hamster");
 		var exitTag = arrange.findTag("exit");
+		var bookshelfTag = arrange.findTag("bookshelf");
+		var jamieTag = arrange.findTag("jamie");
+		var chairTag = arrange.findTag("chair");
 
 		arrange.scriptTriggers = [];
+		
+		arrange.scriptTriggers.push({
+			at:bookshelfTag,
+			name:"bookshelf",
+			script:{
+				pawn:{
+					mesh:meshes.characters.pawn,
+					actions:[
+						{appear:{x: bookshelfTag.x-1, y: bookshelfTag.y}},
+						{say:"I remember <i>A Wrinkle In Time</i>, my favorite book"},
+						{vanish:null},
+					]
+				}
+			}
+		});
+		
+		arrange.scriptTriggers.push({
+			at:jamieTag,
+			name:"jamie",
+			script:{
+				pawn:{
+					mesh:meshes.characters.pawn,
+					actions:[
+						{narrate:"that was Jamie's desk..."},
+					]
+				}
+			}
+		});
 
-		console.log(hamsterTag);
-		console.log(arrange.findTag("cage"));
+		if (arrange.require_problems.desk) {
+			arrange.scriptTriggers.push({
+				at:chairTag,
+				name:"chair",
+				script:{
+					pawn:{
+						mesh:meshes.characters.pawn,
+						actions:[
+							{narrate:"I don't remember that chair being there..."},
+						]
+					}
+				}
+			});
+		} else {
+			arrange.scriptTriggers.push({
+				at:chairTag,
+				name:"chair",
+				script:{
+					pawn:{
+						mesh:meshes.characters.pawn,
+						actions:[
+							{narrate:"yes, teacher's chair never strayed from behind the desk..."},
+						]
+					}
+				}
+			});
+		}
+
 		if (engine.Vec2.equals(hamsterTag, arrange.findTag("cage"))) {
 			arrange.scriptTriggers.push({
 				at:hamsterTag,
@@ -79,9 +140,7 @@ exports = function() {
 					pawn:{
 						mesh:meshes.characters.pawn,
 						actions:[
-							{appear:hamsterTag},
-							{say:"What happened to our class hamster..."},
-							{vanish:null},
+							{narrate:"what happened to our class hamster..."},
 						]
 					}
 				}
