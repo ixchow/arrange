@@ -29,6 +29,7 @@ def mesh_data(obj):
 		print("Ignoring error setting mode to object")
 		
 	obj.data = obj.data.copy() #"make single user" (?)
+	bpy.ops.object.convert(target='MESH', keep_original=False) #apply modifiers:
 	bpy.context.scene.layers = obj.layers
 	#First, triangulate the mesh:
 	bpy.ops.object.select_all(action='DESELECT')
@@ -130,8 +131,11 @@ def mesh_data(obj):
 
 data = {}
 for obj in bpy.data.objects:
-	print(obj.name)
 	if obj.type == 'MESH':
+		if obj.name[0].startswith('.'):
+			print("Skipping " + obj.name)
+			continue
+		print("Exporting " + obj.name)
 		path = []
 		at = obj
 		while at != None:
