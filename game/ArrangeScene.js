@@ -47,7 +47,7 @@ var ArrangeScene = function(levelPath) {
 	this.hoverInfo = null; //info about what the mouse is hovering over
 	this.dragInfo = null; //info about what the mouse is dragging
 
-	this.scriptPlayer = null //if not null, there is a script a-playin' on this
+	this.scriptPlayer = null; //if not null, there is a script a-playin' on this
 
 	//camera is a simple lookAt camera:
 	this.camera = {
@@ -112,7 +112,9 @@ ArrangeScene.prototype.setLevelPath = function(levelPath) {
 	this.camera.target.y = this.combined.min.y + 0.5 * this.combined.size.y - 0.5;
 	this.camera.eye = this.camera.target.plus(new Vec3(5.0, 5.0, 5.0));
 
-	this.scriptPlayer = null
+	//Okay, against my better judgement, I'm going to try not clearing this.
+	// Scripts can get into a weird execution environment this way:
+	//this.scriptPlayer = null;
 
 	this.mouseDown = false;
 
