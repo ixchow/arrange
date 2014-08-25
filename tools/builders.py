@@ -106,5 +106,5 @@ class BuildMML:
 		with open(self.path, 'rb') as f:
 			mml = f.read()
 			mml = mml.replace("\n", " ")
-			result.js = '{0} = function(synth) {{\nreturn engine.mml("{1}")(synth);\n}}\n'.format(self.namespace, mml)
+			result.js = '{0} = engine.mml("{1}");\n'.format(self.namespace, mml)
 		return result

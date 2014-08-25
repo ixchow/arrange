@@ -1,4 +1,5 @@
 var currentAudio;
+var currentSynth;
 var volume;
 var music_master;
 
@@ -6,7 +7,6 @@ exports = {
 	init: function() {
 		volume = engine.localstorage.float("music_volume", 0.6);
 		music_master = 	T('+', { mul: volume() });
-		console.log(volume());
 		music_master.play();
 		volume(function(v) {
 			music_master.set({mul: v});
@@ -14,10 +14,19 @@ exports = {
 	},
 	play: function(music, synth) {
 		if (currentAudio) currentAudio.stop();
-		if (currentAudio) music_master.remove(currentAudio);
-		currentAudio = music(synth);
+		if (currentAudio) currentAudio.removeAll();
+		if (currentSynth) currentSynth.removeAll();
+		music_master.removeAll();
+
+		currentAudio = music;
+		currentSynt = synth;
+
+		synth.in.removeFrom(music);
+		music.append(synth.in);
+
+		synth.out.removeFrom(music_master);
 		music_master.append(synth.out);
-		currentAudio.start();
+		music.start();
 	},
 	toggleMute: function() {
 		if (volume() > 0.5) {
