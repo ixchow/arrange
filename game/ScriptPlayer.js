@@ -19,9 +19,14 @@ PawnState.prototype.nextAction = function() {
 
 	//Cleanup:
 	delete this.txt;
+	delete this.nar;
 	if ('txtObj' in this) {
 		this.txtObj.dismiss();
 		delete this.txtObj;
+	}
+	if ('narObj' in this) {
+		this.narObj.dismiss();
+		delete this.narObj;
 	}
 
 	if (this.action >= this.actions.length) return;
@@ -43,7 +48,9 @@ PawnState.prototype.nextAction = function() {
 			this.signals[param] = true;
 		} else if (op == 'say') {
 			this.txt = param;
-			console.log("saying '" + param + "'");
+			this.wait = {advance:true};
+		} else if (op == 'narrate') {
+			this.nar = param;
 			this.wait = {advance:true};
 		} else if (op == 'walk') {
 			//make a copy of the walk path:
@@ -195,7 +202,10 @@ ScriptPlayer.prototype.draw = function(MVP) {
 				ps.at.x, ps.at.y, 0.0, 1.0
 			);
 			gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
-			this.script[name].mesh.emit();
+
+			if (this.script[name].mesh) {
+				this.script[name].mesh.emit();
+			}
 
 			if ('txt' in ps) {
 				var proj = MVP.times(new Vec4(ps.at.x, ps.at.y, 1.5, 1.0));
@@ -207,10 +217,24 @@ ScriptPlayer.prototype.draw = function(MVP) {
 				pos.y = (pos.y * 0.5 + 0.5) * engine.Size.y;
 				if (!('txtObj' in ps)) {
 					ps.txtObj = new engine.text(ps.txt, pos);
-					console.log(ps.txtObj);
 				} else {
 					ps.txtObj.moveTo(pos);
 				}
+			}
+		} else {
+			if ('txt' in ps) {
+				if (!('txtObj' in ps)) {
+					ps.txtObj = new engine.text(ps.txt,null);
+				} else {
+					ps.txtObj.moveTo(null);
+				}
+			}
+		}
+		if ('nar' in ps) {
+			if (!('narObj' in ps)) {
+				ps.narObj = new engine.text(ps.nar,null);
+			} else {
+				ps.narObj.moveTo(null);
 			}
 		}
 	}
