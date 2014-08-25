@@ -45,7 +45,7 @@ exports = function() {
   // 	return false;
   // });
 	
-	level.music = music.mike1;
+	level.music = music.mikeover;
 	level.synth = synths.bells;
 
 	level.addScriptTriggers = function(arrange) {

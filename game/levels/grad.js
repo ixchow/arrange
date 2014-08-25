@@ -36,7 +36,7 @@ exports = function() {
 
 	var level = game.buildLevel(tileMap, txt);
 
-	level.music = music.mike1;
+	level.music = music.mikeover;
 	level.synth = synths.bells;
 	
 	// level.addScriptTriggers = function(arrange) {
