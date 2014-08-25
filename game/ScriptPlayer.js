@@ -45,6 +45,40 @@ PawnState.prototype.nextAction = function() {
 			this.txt = param;
 			console.log("saying '" + param + "'");
 			this.wait = {advance:true};
+		} else if (op == 'walk') {
+			//make a copy of the walk path:
+			var path = [];
+			if (this.at) {
+				path.push({x:this.at.x, y:this.at.y});
+			}
+			param.forEach(function(p){
+				path.push({x:p.x, y:p.y});
+			});
+			if (!this.at && path.length > 0) {
+				this.at = {x:path[0].x, y:path[0].y};
+			}
+			this.wait = {animate:function(have){
+				var Speed = 1.9;
+				var travel = have.time * Speed;
+				while (path.length > 0 && travel >= 0.0) {
+					var next = path[0];
+					var to = {x:next.x - this.at.x, y:next.y - this.at.y};
+					var dis = Math.sqrt(to.x * to.x + to.y * to.y);
+					if (dis <= travel) {
+						path.shift();
+						this.at = {x:next.x, y:next.y};
+						travel -= dis;
+						console.log(path.length);
+					} else {
+						var fac = travel / dis;
+						this.at = {x:this.at.x + to.x * fac, y:this.at.y + to.y * fac};
+						travel = 0.0;
+						break;
+					}
+				}
+				have.time = travel / Speed;
+				return(path.length > 0);
+			}};
 		} else if (op == 'do') {
 			param.call(null);
 		} else {
@@ -111,6 +145,13 @@ ScriptPlayer.prototype.update = function(elapsed) {
 					if (ps.wait.time <= 0.0) {
 						ps.have.time = -ps.wait.time;
 						delete ps.wait.time;
+					} else {
+						needWait = true;
+					}
+				}
+				if ('animate' in ps.wait) {
+					if (!ps.wait.animate.call(ps, ps.have)) {
+						delete ps.wait.animate;
 					} else {
 						needWait = true;
 					}

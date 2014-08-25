@@ -83,14 +83,14 @@ exports = function() {
 				return false;
 			});
 
-			var secondPoints = points.splice(0, (points.length / 2) | 0);
+			var firstPoints = points.splice(0, ((points.length + 1) / 2) | 0);
 
 			var actions = [];
-			actions.push({appear:points[0]});
+			actions.push({appear:firstPoints[0]});
 			actions.push({say:"now I remember"});
-			actions.push({walk:points});
+			actions.push({walk:firstPoints});
 			actions.push({say:"a simple jaunt"});
-			actions.push({walk:secondPoints});
+			actions.push({walk:points});
 			actions.push({say:"and out the door"});
 			actions.push({vanish:null});
 
