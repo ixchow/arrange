@@ -168,7 +168,7 @@ ArrangeScene.prototype.update = function(elapsed) {
 
 	if (this.scriptPlayer) {
 		this.scriptPlayer.update(elapsed);
-		if (this.scriptPlayer.isFinished()) {
+		if (this.scriptPlayer.finished) {
 			//Mark script as played:
 			this.localState.played[this.scriptPlayer.trigger.name] = true;
 			delete this.scriptPlayer;
@@ -704,7 +704,7 @@ ArrangeScene.prototype.mouse = function(x, y, isDown) {
 		if (!isDown && this.mouseDown) {
 			this.mouseDown = false;
 		} else if (isDown && !this.mouseDown) {
-			this.scriptPlayer.advance();
+			this.scriptPlayer.advance = true;
 		}
 		return;
 	}
