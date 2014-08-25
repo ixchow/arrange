@@ -11,7 +11,7 @@ synth.def = function(opts) {
 };
 
 var master = synth;
-master = T('dist', master);
+master = T('dist', {pre: 60, post: -30, cutoff: 800}, master);
 
 exports = {
 	in: synth,
