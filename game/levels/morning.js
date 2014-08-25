@@ -70,6 +70,30 @@ exports = function() {
 		});
 
 		if (arrange.solved) {
+			var points = [bedTag, exitTag];
+			function p2a(p) {
+				return {x:p.x + arrange.combined.min.x, y:p.y + arrange.combined.min.y};
+			}
+			arrange.paths.some(function(path){
+				var pts = path.map(p2a);
+				if (pts.length >= 2 && pts[0].x == bedTag.x && pts[1].y == bedTag.y) {
+					points = pts;
+					return true;
+				}
+				return false;
+			});
+
+			var firstPoints = points.splice(0, ((points.length + 1) / 2) | 0);
+
+			var actions = [];
+			actions.push({appear:firstPoints[0]});
+			actions.push({say:"now I remember"});
+			actions.push({walk:firstPoints});
+			actions.push({say:"a simple jaunt"});
+			actions.push({walk:points});
+			actions.push({say:"and out the door"});
+			actions.push({vanish:null});
+
 			arrange.scriptTriggers.push({
 				at:exitTag,
 				advance:true,
@@ -77,11 +101,7 @@ exports = function() {
 				script:{
 					pawn:{
 						mesh:meshes.characters.pawn,
-						actions:[
-							{appear:exitTag},
-							{say:"I should be walking this path"},
-							{vanish:null},
-						]
+						actions:actions
 					}
 				}
 			});
