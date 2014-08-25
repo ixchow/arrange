@@ -7,6 +7,10 @@ function Text(text, at) {
 	this.container.appendChild(this.div);
 }
 
+Text.prototype.moveTo = function(at) {
+	this.div.setAttribute('style', 'bottom: ' + at.y + 'px; left: ' + at.x + 'px');
+}
+
 Text.prototype.dismiss = function() {
 	this.container.removeChild(this.div);
 }
