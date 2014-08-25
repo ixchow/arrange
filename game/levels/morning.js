@@ -24,69 +24,17 @@ exports = function() {
 
 	var txt = "";
 	txt += "[. ~. ~. ~. n. ].\n";
-	txt += "[. b. b. r. J. ].\n";
-	txt += "[. b. b. |. .. ].\n";
-	txt += "[. >. -. J. .. ].\n";
+	txt += "[. b. b. .. J. ].\n";
+	txt += "[. b. b. .. r1 ].\n";
+	txt += "[. >. -. J. |1 ].\n";
 	txt += "[. _. _. _. _. ].\n";
 
 	var morning = game.buildLevel(tileMap, txt);
 
-	var introScript = {
-		pawn:{
-			mesh:meshes.characters.pawn,
-			actions:[
-				{appear:{x:1,y:1}},
-				{say:"I remember getting out of bed..."},
-				{vanish:null},
-				{emit:"next"},
-			]
-		},
-		pawn2:{
-			mesh:meshes.characters.pawn,
-			actions:[
-				{wait:"next"},
-				{appear:{x:4,y:3}},
-				{say:"...and walking out the door..."},
-				{vanish:null}
-			]
-		}
-	};
-
-	var exitScript = {
-		pawn:{
-			mesh:meshes.characters.pawn,
-			actions:[
-				{appear:{x:1,y:1}},
-				{say:"I should be walking this path"},
-				{vanish:null},
-			]
-		}
-	};
+	morning.music = music.mikeover;
+	morning.synth = synths.bells;
 
 	var rot = game.utility.rot;
-
-	function findTag(tag) {
-		var found = undefined;
-		this.fragments.some(function(f){
-			f.tiles.some(function(t){
-				if (t.tag == tag) {
-					var dx = rot((f.r + t.r) % 4, {x:1, y:0});
-					var dy = rot((f.r + t.r) % 4, {x:0, y:1});
-					found = {
-						x:dx.x * t.at.x + dy.x * t.at.y + f.at.x,
-						y:dx.y * t.at.x + dy.y * t.at.y + f.at.y
-					};
-				}
-				return found;
-			});
-			return found;
-		});
-		if (!found) {
-			throw "Missing tag '" + tag + "'";
-		}
-		return found;
-	}
-
 
 	/*
 		levels control cutscenes by embedding scripts in the level based
@@ -94,8 +42,8 @@ exports = function() {
 		 that transitions to the next level.
 	*/
 	morning.addScriptTriggers = function(arrange) {
-		var bedTag = findTag("bed");
-		var exitTag = findTag("exit");
+		var bedTag = arrange.findTag("bed");
+		var exitTag = arrange.findTag("exit");
 
 		arrange.scriptTriggers = [];
 
@@ -124,18 +72,40 @@ exports = function() {
 			}
 		});
 
-		if (arrange.consistent()) {
+		if (arrange.solved) {
+			var points = [bedTag, exitTag];
+			function p2a(p) {
+				return {x:p.x + arrange.combined.min.x, y:p.y + arrange.combined.min.y};
+			}
+			arrange.paths.some(function(path){
+				var pts = path.map(p2a);
+				if (pts.length >= 2 && pts[0].x == bedTag.x && pts[1].y == bedTag.y) {
+					points = pts;
+					return true;
+				}
+				return false;
+			});
+
+			var firstPoints = points.splice(0, ((points.length + 1) / 2) | 0);
+
+			var actions = [];
+			actions.push({appear:firstPoints[0]});
+			actions.push({say:"now I remember"});
+			actions.push({walk:firstPoints});
+			actions.push({say:"a simple jaunt"});
+			actions.push({walk:points});
+			actions.push({say:"and out the door"});
+			actions.push({vanish:null});
+			actions.push({warp:'school'});
+
 			arrange.scriptTriggers.push({
 				at:exitTag,
+				advance:true,
 				name:"finish",
 				script:{
 					pawn:{
 						mesh:meshes.characters.pawn,
-						actions:[
-							{appear:{x:1,y:1}},
-							{say:"I should be walking this path"},
-							{vanish:null},
-						]
+						actions:actions
 					}
 				}
 			});

@@ -32,6 +32,9 @@ exports = function(tileMap, txt) {
 			if (tile.tag) {
 				tileClone.tag = tile.tag;
 			}
+			if (tile.pivot) {
+				tileClone.pivot = tile.pivot;
+			}
 			groups[t[1]].tiles.push(tileClone);
 		});
 	});

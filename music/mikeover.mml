@@ -1,0 +1,28 @@
+t90 o5
+[ [
+a. g8 f e  g f e d  f e d e  e2 e2
+r8 a g8 f g  g f e2   f e d c  d2 b2
+a. g8 f g  g f e2   f8 e. d e f2 e2
+f2. e   d2 e f e2 d2 c1 
+]2 < ]2 >
+
+;
+t90 
+[
+f1 g1 a1 g1
+f1 g1 a-1 g1
+]8
+
+;
+t90 <
+[
+r.e8&e2 r.e8&e2 r.g8&g2 r.g8&g2
+r.e8&e2 r.e8&e2 r.e-8&e-2 r.d8&d2
+]8
+
+;
+t90 <
+[
+r2c2 r2c2 r2c2 r2d2
+r2c2 r2c2 r2c2 >r2b2<
+]8

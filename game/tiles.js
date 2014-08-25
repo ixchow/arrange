@@ -19,6 +19,8 @@ var dir = {
 var o = {
 	low: 1 << 0,
 	high:1 << 1,
+	person:1 << 2,
+	chair:1 << 3,
 };
 
 /* How conflicts between tiles work:
@@ -48,6 +50,12 @@ exports = {
 		pathIn:dir.w,
 		needClear:o.low | o.high
 	}),
+	ChairPathEnd: new Tile({
+		mesh:'path_end',
+		pathIn:dir.w,
+		needClear:o.low | o.high,
+		requires: { c: 'chair' },
+	}),
 	PathStraight: new Tile({
 		mesh:'path_straight',
 		pathIn:dir.w,
@@ -62,7 +70,11 @@ exports = {
 	}),
 	Pillar: new Tile({
 		mesh:'pillar',
-		fill:o.low | o.high
+		fill:o.low | o.high | o.person,
+	}),
+	GiantSpeaker: new Tile({
+		mesh:'speaker',
+		fill:o.low | o.high | o.person,
 	}),
 	Blackboard: new Tile({
 		mesh:'wall',
@@ -77,6 +89,11 @@ exports = {
 		fill:o.low,
 		requires: { n: 'desk' }
 	}),
+	FreeChair: new Tile({
+		mesh:'chair',
+		fill:o.chair,
+		provides: { c: 'chair' },
+	}),
 	HamsterCage: new Tile({
 		mesh:'hamster_cage',
 		fill:o.low | o.high,
@@ -88,7 +105,7 @@ exports = {
 	}),
 	Desk: new Tile({
 		mesh:'desk',
-		fill:o.low | o.high,
+		fill:o.low | o.high | o.person,
 		provides: { n: 'desk', s: 'desk', e: 'desk', w: 'desk' }
 	}),
 	SmallDesk: new Tile({
@@ -98,6 +115,14 @@ exports = {
 	Bed: new Tile({
 		mesh:'desk',
 		fill:o.low,
+	}),
+	BlockPerson: new Tile({
+		mesh:'pawn',
+		fill:o.low|o.high|o.person
+	}),
+	SqueezePerson: new Tile({
+		mesh:'pawn',
+		fill:o.person
 	})
 };
 
@@ -109,6 +134,9 @@ exports.linkTiles = function() {
 			if (typeof(t.mesh) == 'string') {
 				var name = t.mesh;
 				t.mesh = meshes.tiles[name];
+				if (t.mesh === undefined) {
+					t.mesh = meshes.characters[name];
+				}
 				if (t.mesh === undefined) {
 					throw "Missing tile mesh '" + name + "'";
 				}

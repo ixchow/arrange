@@ -1,4 +1,4 @@
-var synth = T("SynthDef", {mul:0.45, poly:64});
+var synth = T("SynthDef", {mul:0.45, poly:8});
 
 synth.def = function(opts) {
 	var f = opts.freq / 2;
@@ -13,6 +13,7 @@ synth.def = function(opts) {
 };
 
 var master = synth;
+master = T("lowpass", {cutoff:16000, res:2}, master);
 
 exports = {
 	in: synth,

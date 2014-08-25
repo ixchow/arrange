@@ -5,7 +5,10 @@ exports = function(mml) {
   mml = mml.toLowerCase();
   mml = mml.replace(/p/g, 'r');
 	var mmls = mml.split(';');
-	return function(synth) {
-		return T("mml", {mml: mmls}, synth.in).set({buddies: synth.out});
-  };
+	var gen = T("mml", {mml: mmls});
+	gen.on('ended', function() {
+		gen.stop();
+		gen.start();
+	});
+	return gen;
 }

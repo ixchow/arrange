@@ -63,11 +63,11 @@ exports = {
 			for (r in d.requires) {
 				if (d.requires[r] && !d.provides[r]) {
 					problems.push({ at: d.at, message: "requires " + r });
+					problems[r] = true;
 				}
 			}
 		});
 
-		console.log("problems", problems);
 		return problems;
 	}
 };

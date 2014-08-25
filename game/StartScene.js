@@ -8,11 +8,11 @@ StartScene.prototype.enter = function() {
 
 StartScene.prototype.update = function(elapsed) {
 	var name = window.location.search.substr(1);
-	if (name in game.levels) {
+	if (name.split('.').pop() in game.levels) {
 		console.log("Warping to level '" + name + "'");
-		engine.CurrentScene = new game.ArrangeScene(game.levels[name]);
+		engine.CurrentScene = new game.ArrangeScene(name);
 	} else {
-		engine.CurrentScene = new game.ArrangeScene(game.levels.school);
+		engine.CurrentScene = new game.ArrangeScene('morning');
 	}
 };
 
