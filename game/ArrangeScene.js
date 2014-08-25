@@ -104,7 +104,7 @@ var selectFb = null;
 ArrangeScene.prototype.enter = function() {
 	this.resize();
 	this.update(0.0);
-	engine.music.play(music.mike1, synths.bells);
+	engine.music.play(music.rage, synths.distortion);
 };
 
 ArrangeScene.prototype.leave = function() {
