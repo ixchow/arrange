@@ -1,6 +1,8 @@
 var Mat4 = engine.Mat4;
 var Vec4 = engine.Vec4;
 
+var warpFunc = function() {};
+
 function PawnState(actions, signals) {
 	this.actions = actions;
 	this.signals = signals;
@@ -86,6 +88,8 @@ PawnState.prototype.nextAction = function() {
 				have.time = travel / Speed;
 				return(path.length > 0);
 			}};
+		} else if (op == 'warp') {
+			warpFunc(param);
 		} else if (op == 'do') {
 			param.call(null);
 		} else {
@@ -110,6 +114,16 @@ function ScriptPlayer(script) {
 
 ScriptPlayer.prototype.update = function(elapsed) {
 	if (this.finished) return;
+
+	if (engine.CurrentScene && engine.CurrentScene.scriptPlayer === this) {
+		warpFunc = function(x) {
+			engine.CurrentScene.toNextLevel(x);
+		};
+	} else {
+		warpFunc = function(x) {
+			console.warn("Wanted to warp to '" + x + "', but we aren't the active script.");
+		};
+	}
 
 	this.needAdvance = false;
 

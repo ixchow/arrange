@@ -93,6 +93,7 @@ exports = function() {
 			actions.push({walk:points});
 			actions.push({say:"and out the door"});
 			actions.push({vanish:null});
+			actions.push({warp:'school'});
 
 			arrange.scriptTriggers.push({
 				at:exitTag,
