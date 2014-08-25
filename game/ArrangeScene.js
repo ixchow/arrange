@@ -705,6 +705,7 @@ ArrangeScene.prototype.mouse = function(x, y, isDown) {
 			this.mouseDown = false;
 		} else if (isDown && !this.mouseDown) {
 			this.scriptPlayer.advance = true;
+			this.mouseDown = true;
 		}
 		return;
 	}
