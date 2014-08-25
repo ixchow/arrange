@@ -49,6 +49,12 @@ exports = {
 		pathIn:dir.w,
 		needClear:o.low | o.high
 	}),
+	ChairPathEnd: new Tile({
+		mesh:'path_end',
+		pathIn:dir.w,
+		needClear:o.low | o.high,
+		requires: { c: 'chair' },
+	}),
 	PathStraight: new Tile({
 		mesh:'path_straight',
 		pathIn:dir.w,
@@ -84,6 +90,7 @@ exports = {
 	}),
 	FreeChair: new Tile({
 		mesh:'chair',
+		provides: { c: 'chair' },
 	}),
 	HamsterCage: new Tile({
 		mesh:'hamster_cage',
