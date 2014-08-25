@@ -208,9 +208,10 @@ function buildFloor(locs) {
 
 					var out = prevOut.plus(nextOut);
 
+					//"correct" scaling:
 					var d = 1.0 / out.dot(nextOut);
-
-					out = out.times(0.2 * d);
+					out = out.times(0.07 * d + 0.15);
+					//out = out.times(0.5);
 
 					if (i == 0) {
 						verts2.push(cur.x, cur.y); colors.push(0xffffffff);
@@ -435,6 +436,17 @@ ArrangeScene.prototype.update = function(elapsed) {
 	//since the view is changing, mark select as dirty:
 	this.selectDirty = true;
 
+	
+	//--- update floor pulsing animation ---
+	this.fragments.forEach(function(f){
+		f.pulse -= elapsed * f.pulseSpeed;
+		if (f.pulse < 0.0) {
+			f.pulse = 1.0 + Math.random();
+			f.pulseSpeed = 0.7 * Math.pow(2.0, Math.random() - 0.5);
+		}
+	});
+
+	//--- update scripts ---
 	if (this.scriptPlayer) {
 		this.scriptPlayer.update(elapsed);
 		if (this.scriptPlayer.finished) {
@@ -490,15 +502,6 @@ ArrangeScene.prototype.update = function(elapsed) {
 			p.spin += fac * elapsed;
 			if (p.spin > 2.0 * Math.PI) p.spin = p.spin % (2.0 * Math.PI);
 		});
-	});
-
-	//--- update floor pulsing animation ---
-	this.fragments.forEach(function(f){
-		f.pulse -= elapsed * f.pulseSpeed;
-		if (f.pulse < 0.0) {
-			f.pulse = 1.0 + Math.random();
-			f.pulseSpeed = 0.7 * Math.pow(2.0, Math.random() - 0.5);
-		}
 	});
 
 }
@@ -721,6 +724,7 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 			}
 			f.floor.emit();
 		});
+
 		gl.disable(gl.BLEND);
 		gl.enable(gl.DEPTH_TEST);
 	}
