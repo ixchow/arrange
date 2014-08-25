@@ -552,7 +552,7 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 					x:st.at.x - selectTagMin.x,
 					y:st.at.y - selectTagMin.y
 				};
-				gl.vertexAttrib3f(s.aTag.location, tag.x / 255.0, tag.y / 255.0, 255);
+				gl.vertexAttrib3f(s.aTag.location, tag.x / 255.0, tag.y / 255.0, 254.0 / 255.0);
 			} else {
 				if (st === selected) {
 					gl.uniform4f(s.uTint.location, 1.2, 1.2, 1.2, 1.0);
@@ -737,7 +737,7 @@ ArrangeScene.prototype.setHoverInfo = function(x, y) {
 
 	this.scriptTriggers.some(function(st){
 		//TODO: check if script trigger has been played
-		if (st.at.x == hoverInfo.at.x && st.at.y == hoverInfo.at.y) {
+		if (st.at.x == hoverInfo.at.x && st.at.y == hoverInfo.at.y && idx == 254) {
 			hoverInfo.scriptTrigger = st;
 			return true;
 		}
