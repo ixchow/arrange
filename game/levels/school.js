@@ -1,6 +1,6 @@
 exports = function() {
 	var tileMap = {
-		S: { r: 2, t: game.tiles.PathStart },
+		S: { r: 2, t: game.tiles.PathStart, tag: 'start' },
 		E: { r: 0, t: game.tiles.PathEnd, tag: 'exit' },
 		P: { r: 0, t: game.tiles.Pillar },
 		'|': { r: 1, t: game.tiles.PathStraight },
@@ -55,6 +55,7 @@ exports = function() {
 	level.addScriptTriggers = function(arrange) {
 		var hamsterTag = arrange.findTag("hamster");
 		var exitTag = arrange.findTag("exit");
+		var startTag = arrange.findTag("start");
 		var bookshelfTag = arrange.findTag("bookshelf");
 		var jamieTag = arrange.findTag("jamie");
 		var chairTag = arrange.findTag("chair");
@@ -148,6 +149,34 @@ exports = function() {
 		}
 
 		if (arrange.solved) {
+			var points = [startTag, exitTag];
+			function p2a(p) {
+				return {x:p.x + arrange.combined.min.x, y:p.y + arrange.combined.min.y};
+			}
+			arrange.paths.some(function(path){
+				var pts = path.map(p2a);
+				if (pts.length >= 2 && pts[0].x == startTag.x && pts[1].y == startTag.y) {
+					points = pts;
+					return true;
+				}
+				return false;
+			});
+
+			var firstPoints = points.splice(0, ((points.length + 1) / 3) | 0);
+			var secondPoints = points.splice(0, ((points.length + 1) / 2) | 0);
+
+			var actions = [];
+			actions.push({appear:firstPoints[0]});
+			actions.push({say:"now I remember"});
+			actions.push({walk:firstPoints});
+			actions.push({say:"one day we found the hamster had died"});
+			actions.push({walk:secondPoints});
+			actions.push({say:"I carried him out behind the gym"});
+			actions.push({walk:points});
+			actions.push({vanish:null});
+			actions.push({warp:'nightclub'});
+			actions.push({narrate:'elsewhere, another soul remembers a very different life...'});
+
 			arrange.scriptTriggers.push({
 				at:exitTag,
 				advance:true,
@@ -155,11 +184,7 @@ exports = function() {
 				script:{
 					pawn:{
 						mesh:meshes.characters.pawn,
-						actions:[
-							{appear:exitTag},
-							{say:"I should be walking this path"},
-							{vanish:null},
-						]
+						actions:actions
 					}
 				}
 			});
