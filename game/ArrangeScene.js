@@ -235,7 +235,6 @@ ArrangeScene.prototype.update = function(elapsed) {
 	//since the view is changing, mark select as dirty:
 	this.selectDirty = true;
 
-
 	if (this.scriptPlayer) {
 		this.scriptPlayer.update(elapsed);
 		if (this.scriptPlayer.finished) {
@@ -263,6 +262,19 @@ ArrangeScene.prototype.update = function(elapsed) {
 	if (!this.dragInfo && this.needScriptTriggers) {
 		this.updateScriptTriggers();
 	}
+
+	var selected = null;
+	if (this.hoverInfo && this.hoverInfo.scriptTrigger) {
+		selected = this.hoverInfo.scriptTrigger;
+	}
+
+	this.scriptTriggers.forEach(function(st){
+		var fac = 1.0;
+		if (st === selected) fac = 2.5;
+		st.spin += fac * elapsed;
+		if (st.spin > 2.0 * Math.PI) st.spin = st.spin % (2.0 * Math.PI);
+	});
+
 }
 
 ArrangeScene.prototype.buildCombined = function() {
@@ -335,9 +347,22 @@ ArrangeScene.prototype.buildCombined = function() {
 };
 
 ArrangeScene.prototype.updateScriptTriggers = function() {
+	var scriptSpins = {};
+	this.scriptTriggers.forEach(function(st){
+		if (st.spin) {
+			scriptSpins[st.name] = st.spin;
+		}
+	});
 	delete this.needScriptTriggers;
 	this.scriptTriggers = [];
 	this.level.addScriptTriggers && this.level.addScriptTriggers(this);
+	this.scriptTriggers.forEach(function(st){
+		if (st.name in scriptSpins) {
+			st.spin = scriptSpins[st.name];
+		} else {
+			st.spin = Math.random() * Math.PI * 2.0;
+		}
+	});
 };
 
 ArrangeScene.prototype.checkCombined = function() {
@@ -388,9 +413,6 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 
 	if (drawSelect) {
 		gl.bindFramebuffer(gl.FRAMEBUFFER, selectFb);
-		gl.disable(gl.BLEND);
-	} else {
-		gl.disable(gl.BLEND); //unclear if we want to or not
 	}
 
 	//drawSelect = true; //DEBUG
@@ -411,9 +433,10 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 	}
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 	gl.enable(gl.DEPTH_TEST);
+	gl.disable(gl.BLEND);
 
 
-	var s = drawSelect?shaders.select:shaders.solid;
+	var s = drawSelect?shaders.select:shaders.tile;
 	gl.useProgram(s);
 
 	var MVP = this.MVP;
@@ -441,13 +464,19 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 		gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
 	}
 
+	var selectedFragment = null;
+	if (this.hoverInfo && this.hoverInfo.fragment) {
+		selectedFragment = this.hoverInfo.fragment;
+	}
+
 	for (var x = 0; x < this.combined.size.x; ++x) {
 		for (var y = 0; y < this.combined.size.y; ++y) {
 			var stack = this.combined[y * this.combined.size.x + x];
 			var at = {x:this.combined.min.x + x, y:this.combined.min.y + y};
 
 			var tag = {x:at.x - this.selectTagMin.x, y:at.y - this.selectTagMin.y};
-
+/*
+			//TODO: floor(s) in earlier pass
 			if (stack.length && !drawSelect) {
 				//draw floor
 				var xf = new Mat4(
@@ -459,6 +488,7 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 				gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
 				meshes.tiles.empty.emit();
 			}
+*/
 
 			stack.forEach(function(t, ti){
 				if (!drawSelect && t.path) return;
@@ -466,6 +496,12 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 				tr(t.r, at);
 				if (drawSelect) {
 					gl.vertexAttrib3f(s.aTag.location, tag.x / 255.0, tag.y / 255.0, ti / 255.0);
+				} else {
+					if (t.fragment == selectedFragment) {
+						gl.uniform4f(s.uTint.location, 1.2, 1.2, 1.2, 1.0);
+					} else {
+						gl.uniform4f(s.uTint.location, 1.0, 1.0, 1.0, 1.0);
+					}
 				}
 				t.tile.emit();
 				//draw rotation action icons:
@@ -478,6 +514,8 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 					);
 					if (drawSelect) {
 						gl.vertexAttrib3f(s.aTag.location, tag.x / 255.0, tag.y / 255.0, ti / 255.0);
+					} else {
+						gl.uniform4f(s.uTint.location, 1.0, 1.0, 1.0, 0.5);
 					}
 					gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
 					meshes.icons.rotate.emit();
@@ -489,17 +527,25 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 
 	//Draw action icons (script triggers):
 	if (!this.scriptPlayer) {
+		var selected = null;
+		if (this.hoverInfo && this.hoverInfo.scriptTrigger) {
+			selected = this.hoverInfo.scriptTrigger;
+		}
 		var selectTagMin = this.selectTagMin;
 		this.scriptTriggers.forEach(function(st){
 			//TODO: if script has played already, skip drawing
+
+			var ang =-(Math.sin(st.spin) * 0.1 + 0.25) * Math.PI;
+
+			var xd = {x:Math.cos(ang), y:Math.sin(ang)};
+			var yd = {x:-xd.y, y:xd.x};
 			var xf = new Mat4(
-				0.5, 0.0, 0.0, 0.0,
-				0.0, 0.5, 0.0, 0.0,
+				0.5 * xd.x, 0.5 * xd.y, 0.0, 0.0,
+				0.5 * yd.x, 0.5 * yd.y, 0.0, 0.0,
 				0.0, 0.0, 0.5, 0.0,
 				st.at.x, st.at.y, 0.0, 1.0
 			);
 			gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
-			//TODO: select icon based on script info (e.g. different icon for exit)
 			//TODO: orient for viewing direction
 			if (drawSelect) {
 				var tag = {
@@ -507,12 +553,22 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 					y:st.at.y - selectTagMin.y
 				};
 				gl.vertexAttrib3f(s.aTag.location, tag.x / 255.0, tag.y / 255.0, 255);
+			} else {
+				if (st === selected) {
+					gl.uniform4f(s.uTint.location, 1.2, 1.2, 1.2, 1.0);
+				} else {
+					gl.uniform4f(s.uTint.location, 1.0, 1.0, 1.0, 1.0);
+				}
 			}
-
-			meshes.icons.play.emit();
+			if (st.advance) {
+				meshes.icons.advance.emit();
+			} else {
+				meshes.icons.play.emit();
+			}
 		});
 	}
 
+	//Special path shaders:
 	if (!drawSelect && this.paths && this.paths.length > 0) {
 		s = shaders.select; //temp, will be shaders.path at some pt
 		gl.useProgram(s);
@@ -543,17 +599,8 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 		gl.uniformMatrix4fv(s.uMVP.location, false, MVP);
 		this.problemPulse.draw(this.problems, MVP);
 		if (this.hoverInfo) {
-			if (this.hoverInfo.scriptTrigger) {
+			if (this.hoverInfo.scriptTrigger || (this.hoverInfo.t && this.hoverInfo.t.pivot)) {
 				this.hoverPulse.draw([{at:this.hoverInfo.at}], MVP);
-			} else if (this.hoverInfo.fragment) {
-				var f = this.hoverInfo.fragment;
-				var dx = rot(f.r,{x:1,y:0});
-				var dy = rot(f.r,{x:0,y:1});
-				this.hoverPulse.draw(f.tiles.map(function (t) {
-					return {at: {
-						x: t.at.x * dx.x + t.at.y * dy.x + f.at.x,
-						y: t.at.x * dx.y + t.at.y * dy.y + f.at.y}};
-				}), MVP);
 			}
 		}
 		this.requirePulse.draw(this.require_problems, MVP);
