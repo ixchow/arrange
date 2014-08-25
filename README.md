@@ -33,6 +33,32 @@ If we want to get something showing as soon as possible, would it make sense to 
 ### mouse(x, y, isDown) [optional]
   called when the mouse state changes
 
+## Cutscene Script Actions
+
+### appear:{x:,y:}
+  set pawn's location to the parameter.
+
+### vanish:null
+  unset pawn's location. it will not be drawn. "say" actions will behave like "narrate" actions.
+
+### wait:2.0 or wait:"signal"
+  if called with a number, waits that number of seconds. called with a string, waits for a signal of that name to be set.
+
+### emit:"signal"
+  sets the given signal. signals are never unset
+
+### say:"html"
+  draws a dialog bubble with the given html over the pawn's head.
+
+### narrate:"html"
+  draws a bubble with the given html (not positioned relative to the pawn).
+
+### walk:[{x:,y:},{x:,y:},...]
+  walks through the given list of points. if the pawn is not visible, it will start at the first point. otherwise, it will start from its current location.
+
+### do:function(){}
+  Invoke an arbitrary function. The this pointer will be null.
+
 ## Tools
 
 ### play.js
