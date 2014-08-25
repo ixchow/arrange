@@ -539,6 +539,10 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 
 	//Draw action icons (pivots):
 	if (!this.scriptPlayer) {
+		var selected = null;
+		if (this.hoverInfo && this.hoverInfo.pivot) {
+			selected = this.hoverInfo.pivot;
+		}
 		this.fragments.forEach(function(f){
 			var xd = rot(f.r, {x:1,y:0});
 			var yd = rot(f.r, {x:0,y:1});
@@ -564,7 +568,11 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 					};
 					gl.vertexAttrib3f(s.aTag.location, tag.x / 255.0, tag.y / 255.0, 253 / 255.0);
 				} else {
-					gl.uniform4f(s.uTint.location, 1.0, 1.0, 1.0, 1.0);
+					if (p == selected) {
+						gl.uniform4f(s.uTint.location, 1.2, 1.2, 1.2, 1.0);
+					} else {
+						gl.uniform4f(s.uTint.location, 1.0, 1.0, 1.0, 1.0);
+					}
 				}
 				meshes.icons.rotate.emit();
 			});
