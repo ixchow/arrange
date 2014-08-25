@@ -61,14 +61,16 @@ exports = function() {
 		arrange.scriptTriggers = [];
 
 		arrange.scriptTriggers.push({
-			at:djTag,
-			name:"dj",
+			at:startTag,
+			name:"startNightclub",
 			script:{
 				pawn:{
 					mesh:meshes.characters.pawn,
 					actions:[
 						{appear:startTag},
-						{say:"drinking and dancing, this was my life"},
+						{say:"it's hard to remember one night from the next"},
+						{appear:{x: 1, y: 1}},
+						{say:"if I wasn't drinking alone, I was dancing and drinking"},
 						{vanish:null},
 					]
 				}
@@ -139,12 +141,13 @@ exports = function() {
 
 			var actions = [];
 			actions.push({appear:firstPoints[0]});
-			actions.push({say:"now I remember. it was my birthday, and not a fun one"});
+			actions.push({say:"now I remember the last drink I had"});
 			actions.push({walk:firstPoints});
-			actions.push({say:"that guy at the bar yelled at me when I pushed by"});
+			actions.push({say:"I pushed up to the bar for a few shots"});
 			actions.push({walk:secondPoints});
-			actions.push({say:"I don't remember much after that"});
+			actions.push({say:"I remember getting to the dance floor, but not much after that"});
 			actions.push({walk:points});
+			actions.push({say:"the next day, I decided to change"});
 			actions.push({vanish:null});
 			actions.push({warp:'grad'});
 
