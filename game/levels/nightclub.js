@@ -1,7 +1,9 @@
 exports = function() {
 	var tileMap = {
-		S: { r: 2, t: game.tiles.PathStart },
+		S: { r: 1, t: game.tiles.PathStart },
 		E: { r: 1, t: game.tiles.PathEnd, tag: 'exit' },
+		'_': { r: 2, t: game.tiles.Wall },
+		')': { r: 1, t: game.tiles.Wall },
 		'|': { r: 1, t: game.tiles.PathStraight },
 		'*': { r: 1, t: game.tiles.PathStraight, pivot: true },
 		'-': { r: 0, t: game.tiles.PathStraight },
@@ -9,30 +11,25 @@ exports = function() {
 		'{': { r: 2, t: game.tiles.PathLeft },
 		'[': { r: 3, t: game.tiles.PathLeft },
 		']': { r: 0, t: game.tiles.PathLeft },
-		B: { r: 0, t: game.tiles.Pillar }, // shelves
 		d: { r: 0, t: game.tiles.Desk },
-		n: { r: 0, t: game.tiles.SmallDesk },
-		// D: { r: 0, t: game.tiles.Desk },
 		c: { r: 2, t: game.tiles.FreeChair },
-		P: { r: 0, t: game.tiles.GiantSpeaker },
+		B: { r: 0, t: game.tiles.GiantSpeaker },
+		P: { r: 0, t: game.tiles.BlockPerson },
+		p: { r: 0, t: game.tiles.SqueezePerson }
 	};
 	
 	var txt = "";
-	txt += "d. d. d. d. d. d. d. d. d.\n";
-	txt += "d. d. d. d. d. d. d. d. d.\n";
-	txt += "d. d. d. d. B. d. d. d. d.\n";
-	txt += "d. n. d. d. d. d. d. d. d.\n";
-	txt += "P. E. .. .. .. .. .. P. ..\n";
-	txt += "{. ]. .. .. .. .. .. .. ..\n";
-	txt += "|. c. c. c. c. c. c. c. ..\n";
-	txt += "|. c. c. c. c. c. c. c. ..\n";
-	txt += "|. c. c. c. c. c. c. c. ..\n";
-	txt += "|. c. c. c. c. c. c. c. ..\n";
-	txt += "[. -. S. c. c. c. c. c. ..\n";
-	txt += ".. c. c. c. n. c. c. c. ..\n";
-	txt += ".. c. c. c. .. c. c. c. ..\n";
-	txt += ".. .. .. .. .. .. .. .. ..\n";
-	txt += ".. .. .. .. .. .. .. .. P.\n";
+	txt += "_. _. _. ..\n";
+	txt += "B. B. B. ).\n";
+	txt += "[. p4 P. ).\n";
+	txt += "P4 }. d. ).\n";
+	txt += "P. p. |. ).\n";
+	txt += "{. ]. P. ).\n";
+	txt += "|3 d. d. ).\n";
+	txt += "|3 d. E. ).\n";
+	txt += "p. d. p. ).\n";
+	txt += "|. d. -1 ).\n";
+	txt += "S. d. {2 ).\n";
 
 	var level = game.buildLevel(tileMap, txt);
 	

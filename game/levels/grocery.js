@@ -2,7 +2,6 @@ exports = function() {
 	var tileMap = {
 		S: { r: 0, t: game.tiles.PathStart },
 		E: { r: 0, t: game.tiles.PathEnd, tag: 'exit', pivot: true  },
-		'.': { r: 0, t: game.tiles.Wall },
 		')': { r: 1, t: game.tiles.Wall },
 		'|': { r: 1, t: game.tiles.PathStraight },
 		'*': { r: 1, t: game.tiles.PathStraight, pivot: true },
