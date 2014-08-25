@@ -20,6 +20,7 @@ var o = {
 	low: 1 << 0,
 	high:1 << 1,
 	person:1 << 2,
+	chair:1 << 3,
 };
 
 /* How conflicts between tiles work:
@@ -90,6 +91,7 @@ exports = {
 	}),
 	FreeChair: new Tile({
 		mesh:'chair',
+		fill:o.chair,
 		provides: { c: 'chair' },
 	}),
 	HamsterCage: new Tile({

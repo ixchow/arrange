@@ -24,10 +24,10 @@ exports = function() {
 	txt += "d. n. d8 d8 d8 d. d9 d. d. ..\n";
 	txt += ".. E. .. .. .. .. .. .. .. ..\n";
 	txt += "{. ]. .. .. .. .. .. .. .. ..\n";
-	txt += "|. c. C7 c7 c7 c1 c1 c1 .. ..\n";
-	txt += "|. c7 c6 c6 c1 c1 C1 c1 .. ..\n";
+	txt += "|. c. c. c. c. c1 c1 c1 .. ..\n";
+	txt += "|. c. c6 c6 c1 c1 C1 c1 .. ..\n";
 	txt += "|. c6 c6 C6 c6 c. c1 c1 .. ..\n";
-	txt += "|. c5 c4 c4 c3 c3 c3 C3 .. ..\n";
+	txt += "|. c. c4 c4 c3 c3 c3 C3 .. ..\n";
 	txt += ".. c5 c5 c4 c4 c2 c2 c3 .. ..\n";
 	txt += ".. c5 c4 c4 .. c2 c2 c3 .. ..\n";
 	txt += ".. c5 c. c. .. c2 c2 c2 .. ..\n";
@@ -96,9 +96,9 @@ exports = function() {
 
 			var actions = [];
 			actions.push({appear:points[0]});
-			actions.push({say:"I remember how excited I was to enter the real world"});
+			actions.push({say:"now I remember"});
 			actions.push({walk:points});
-			// actions.push({say:""});
+			actions.push({say:"I took the stage and accepted my diploma"});
 			actions.push({vanish:null});
 			actions.push({warp:'aa'});
 

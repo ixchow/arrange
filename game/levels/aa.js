@@ -61,6 +61,8 @@ exports = function() {
 					actions:[
 						{appear:startTag},
 						{say:"I remember my first AA meeting..."},
+						{appear:exitTag},
+						{say:"...everyone was sitting in a circle..."},
 						{vanish:null},
 					]
 				}
@@ -74,7 +76,7 @@ exports = function() {
 				pawn:{
 					mesh:meshes.characters.pawn,
 					actions:[
-						{narrate:"I didn't know anyone that day..."},
+						{narrate:"that was Riley's chair..."},
 					]
 				}
 			}
@@ -92,12 +94,13 @@ exports = function() {
 
 			var actions = [];
 			actions.push({appear:firstPoints[0]});
+			actions.push({say:"now I remember"});
 			actions.push({walk:firstPoints});
-			actions.push({say:"I remember feeling an intense shame"});
+			actions.push({say:"I felt shame as I entered the room"});
 			actions.push({walk:secondPoints});
-			actions.push({say:"everyone was looking at me, and I remember avoiding eye contact"});
+			actions.push({say:"I avoided eye contact as everyone watched"});
 			actions.push({walk:points});
-			actions.push({say:"but I finally took my seat..."});
+			actions.push({say:"but I finally took a seat..."});
 			actions.push({vanish:null});
 			actions.push({warp:'grocery'});
 
