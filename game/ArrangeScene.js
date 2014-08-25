@@ -1,3 +1,4 @@
+var Vec2 = engine.Vec2;
 var Vec3 = engine.Vec3;
 var Mat4 = engine.Mat4;
 
@@ -109,9 +110,6 @@ ArrangeScene.prototype.enter = function() {
 ArrangeScene.prototype.leave = function() {
 };
 
-ArrangeScene.prototype.playScript = function(script) {
-};
-
 ArrangeScene.prototype.resize = function() {
 	if (!selectFb) {
 		selectFb = gl.createFramebuffer();
@@ -138,6 +136,29 @@ ArrangeScene.prototype.resize = function() {
 	gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, selectFb.depthRb);
 	gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 };
+
+ArrangeScene.prototype.findTag = function(tag) {
+	var found = undefined;
+	this.fragments.some(function(f){
+		f.tiles.some(function(t){
+			if (t.tag == tag) {
+				var dx = rot(f.r, {x:1, y:0});
+				var dy = rot(f.r, {x:0, y:1});
+				found = new Vec2(
+					dx.x * t.at.x + dy.x * t.at.y + f.at.x,
+					dx.y * t.at.x + dy.y * t.at.y + f.at.y
+				);
+			}
+			return found;
+		});
+		return found;
+	});
+	if (!found) {
+		throw "Missing tag '" + tag + "'";
+	}
+	return found;
+};
+
 
 ArrangeScene.prototype.update = function(elapsed) {
 

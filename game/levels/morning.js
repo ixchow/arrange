@@ -31,62 +31,7 @@ exports = function() {
 
 	var morning = game.buildLevel(tileMap, txt);
 
-	var wakeScript = {
-		pawn:{
-			mesh:meshes.characters.pawn,
-			actions:[
-				{appear:{x:1,y:1}},
-				{say:"I remember getting out of bed..."},
-				{vanish:null},
-				{emit:"next"},
-			]
-		},
-		pawn2:{
-			mesh:meshes.characters.pawn,
-			actions:[
-				{wait:"next"},
-				{appear:{x:4,y:3}},
-				{say:"...and walking out the door..."},
-				{vanish:null}
-			]
-		}
-	};
-
-	var exitScript = {
-		pawn:{
-			mesh:meshes.characters.pawn,
-			actions:[
-				{appear:{x:1,y:1}},
-				{say:"I should be walking this path"},
-				{vanish:null},
-			]
-		}
-	};
-
 	var rot = game.utility.rot;
-
-	function findTag(tag) {
-		var found = undefined;
-		this.fragments.some(function(f){
-			f.tiles.some(function(t){
-				if (t.tag == tag) {
-					var dx = rot(f.r, {x:1, y:0});
-					var dy = rot(f.r, {x:0, y:1});
-					found = {
-						x:dx.x * t.at.x + dy.x * t.at.y + f.at.x,
-						y:dx.y * t.at.x + dy.y * t.at.y + f.at.y
-					};
-				}
-				return found;
-			});
-			return found;
-		});
-		if (!found) {
-			throw "Missing tag '" + tag + "'";
-		}
-		return found;
-	}
-
 
 	/*
 		levels control cutscenes by embedding scripts in the level based
@@ -94,15 +39,34 @@ exports = function() {
 		 that transitions to the next level.
 	*/
 	morning.addScriptTriggers = function(arrange) {
-		var bedTag = findTag.call(arrange, "bed");
-		var exitTag = findTag.call(arrange, "exit");
+		var bedTag = arrange.findTag("bed");
+		var exitTag = arrange.findTag("exit");
 
 		arrange.scriptTriggers = [];
 
 		arrange.scriptTriggers.push({
 			at:bedTag,
 			name:"wakeMemory",
-			script:wakeScript
+			script:{
+				pawn:{
+					mesh:meshes.characters.pawn,
+					actions:[
+						{appear:bedTag},
+						{say:"I remember getting out of bed..."},
+						{vanish:null},
+						{emit:"next"},
+					]
+				},
+				pawn2:{
+					mesh:meshes.characters.pawn,
+					actions:[
+						{wait:"next"},
+						{appear:exitTag},
+						{say:"...and walking out the door..."},
+						{vanish:null}
+					]
+				}
+			}
 		});
 
 		if (arrange.solved) {
@@ -110,7 +74,16 @@ exports = function() {
 				at:exitTag,
 				advance:true,
 				name:"finish",
-				script:exitScript
+				script:{
+					pawn:{
+						mesh:meshes.characters.pawn,
+						actions:[
+							{appear:exitTag},
+							{say:"I should be walking this path"},
+							{vanish:null},
+						]
+					}
+				}
 			});
 		}
 
