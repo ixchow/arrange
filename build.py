@@ -6,6 +6,11 @@ from tools.builders import BuildNamespace, BuildJS, BuildMesh, BuildShader, Buil
 
 builders = []
 
+try:
+	os.mkdir('tmp')
+except:
+	pass
+
 #walk directory structure, build list of files to process
 for _root, dirs, files in os.walk('.'):
 	root = os.path.relpath(_root)
