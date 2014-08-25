@@ -15,4 +15,17 @@ Text.prototype.dismiss = function() {
 	this.container.removeChild(this.div);
 }
 
+var sheet;
+Text.init = function() {
+	sheet = document.createElement('style')
+	sheet.innerHTML = "#text-container div { font-size: 150px; }";
+	document.body.appendChild(sheet);
+}
+
+Text.resize = function(size) {
+	console.log(size);
+	var tsize = (size.x - 600)*30/630 + 20
+	sheet.innerHTML = "#text-container div { font-size: " + tsize + "px; }";
+}
+
 exports = Text;

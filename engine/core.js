@@ -37,6 +37,7 @@ Object.defineProperty(engine, "CurrentScene", {
 exports.init = function(onstart) {
 	engine.music.init();
 	engine.sfx.init();
+	engine.text.init();
 
 	//--------------------------
 	//initialize canvas and WebGL:
@@ -117,6 +118,7 @@ exports.init = function(onstart) {
 			//Notify current scene, if there is one:
 			CurrentScene && CurrentScene.resize && CurrentScene.resize();
 		}
+		engine.text.resize(Size);
 	}
 
 	window.addEventListener('resize', resized);
