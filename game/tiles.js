@@ -19,6 +19,7 @@ var dir = {
 var o = {
 	low: 1 << 0,
 	high:1 << 1,
+	person:1 << 2,
 };
 
 /* How conflicts between tiles work:
@@ -62,11 +63,11 @@ exports = {
 	}),
 	Pillar: new Tile({
 		mesh:'pillar',
-		fill:o.low | o.high
+		fill:o.low | o.high | o.person,
 	}),
 	GiantSpeaker: new Tile({
 		mesh:'speaker',
-		fill:o.low | o.high
+		fill:o.low | o.high | o.person,
 	}),
 	Blackboard: new Tile({
 		mesh:'wall',
@@ -96,7 +97,7 @@ exports = {
 	}),
 	Desk: new Tile({
 		mesh:'desk',
-		fill:o.low | o.high,
+		fill:o.low | o.high | o.person,
 		provides: { n: 'desk', s: 'desk', e: 'desk', w: 'desk' }
 	}),
 	SmallDesk: new Tile({
@@ -106,6 +107,14 @@ exports = {
 	Bed: new Tile({
 		mesh:'desk',
 		fill:o.low,
+	}),
+	BlockPerson: new Tile({
+		mesh:'pawn',
+		fill:o.low|o.high|o.person
+	}),
+	SqueezePerson: new Tile({
+		mesh:'pawn',
+		fill:o.person
 	})
 };
 
@@ -117,6 +126,9 @@ exports.linkTiles = function() {
 			if (typeof(t.mesh) == 'string') {
 				var name = t.mesh;
 				t.mesh = meshes.tiles[name];
+				if (t.mesh === undefined) {
+					t.mesh = meshes.characters[name];
+				}
 				if (t.mesh === undefined) {
 					throw "Missing tile mesh '" + name + "'";
 				}
