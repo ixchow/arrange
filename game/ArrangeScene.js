@@ -832,7 +832,11 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 						gl.uniform4f(s.uTint.location, 1.0, 1.0, 1.0, 1.0);
 					}
 				}
-				meshes.icons.rotate.emit();
+				if (drawSelect) {
+					meshes.icons.rotate_select.emit();
+				} else {
+					meshes.icons.rotate.emit();
+				}
 			});
 		});
 	}
@@ -1190,6 +1194,7 @@ ArrangeScene.prototype.mouse = function(x, y, isDown) {
 					this.dragInfo = this.hoverInfo;
 				}
 			} else {
+			/* DISABLE camera motion
 				var mouse3d = this.mouseToPlane(0.0);
 				this.dragInfo = {
 					z:0,
@@ -1198,6 +1203,7 @@ ArrangeScene.prototype.mouse = function(x, y, isDown) {
 						y:mouse3d.y
 					}
 				};
+				*/
 			}
 		}
 		this.mouseDown = true;
