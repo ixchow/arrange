@@ -24,9 +24,9 @@ exports = function() {
 
 	var txt = "";
 	txt += "[. ~. ~. ~. n. ].\n";
-	txt += "[. b. b. r. J. ].\n";
-	txt += "[. b. b. |. .. ].\n";
-	txt += "[. >. -. J. .. ].\n";
+	txt += "[. b. b. .. J. ].\n";
+	txt += "[. b. b. .. r1 ].\n";
+	txt += "[. >. -. J. |1 ].\n";
 	txt += "[. _. _. _. _. ].\n";
 
 	var morning = game.buildLevel(tileMap, txt);

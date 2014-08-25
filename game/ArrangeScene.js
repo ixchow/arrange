@@ -345,14 +345,14 @@ ArrangeScene.prototype.checkCombined = function() {
 	this.problems = game.problems.determineProblems(combined);
 	this.paths = game.paths.determinePaths(combined, this.problems);
 	this.require_problems = game.provides_requires.check(combined);
-	this.solved = (this.problems.length == 0) && (this.require_problems.length == 0);
 	var pathsSolved = this.paths.every(function(path){
 		if (path.length < 2) return false;
 		var last = path[path.length-1];
 		if (!last.s) return false;
-		if ('pathOut' in last.s) return false;
+		if ('pathOut' in last.s.tile) return false;
 		return true;
 	});
+	this.solved = (this.problems.length == 0) && (this.require_problems.length == 0) && pathsSolved;
 };
 
 //These should probably get moved:

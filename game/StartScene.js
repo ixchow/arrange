@@ -12,7 +12,7 @@ StartScene.prototype.update = function(elapsed) {
 		console.log("Warping to level '" + name + "'");
 		engine.CurrentScene = new game.ArrangeScene(name);
 	} else {
-		engine.CurrentScene = new game.ArrangeScene('school');
+		engine.CurrentScene = new game.ArrangeScene('morning');
 	}
 };
 
