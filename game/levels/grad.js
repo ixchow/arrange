@@ -35,6 +35,9 @@ exports = function() {
 	txt += ".. .. .. .. .. .. .. .. P.\n";
 
 	var level = game.buildLevel(tileMap, txt);
+
+	level.music = music.mike1;
+	level.synth = synths.bells;
 	
 	// level.addScriptTriggers = function(arrange) {
 	// 	var hamsterTag = arrange.findTag("hamster");

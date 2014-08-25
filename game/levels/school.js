@@ -45,6 +45,9 @@ exports = function() {
   // 	return false;
   // });
 	
+	level.music = music.mike1;
+	level.synth = synths.bells;
+
 	level.addScriptTriggers = function(arrange) {
 		var hamsterTag = arrange.findTag("hamster");
 		var exitTag = arrange.findTag("exit");

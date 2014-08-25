@@ -31,6 +31,9 @@ exports = function() {
 
 	var morning = game.buildLevel(tileMap, txt);
 
+	morning.music = music.mike1;
+	morning.synth = synths.bells;
+
 	var rot = game.utility.rot;
 
 	/*

@@ -122,6 +122,10 @@ ArrangeScene.prototype.setLevelPath = function(levelPath) {
 	this.dragInfo = null; //info about tile mouse is dragging
 
 	this.selectDirty = true;
+
+	if (this.level.music) {
+		engine.music.play(this.level.music, this.level.synth);
+	}
 };
 
 ArrangeScene.prototype.toNextLevel = function(levelName) {
@@ -150,7 +154,6 @@ var selectFb = null;
 ArrangeScene.prototype.enter = function() {
 	this.resize();
 	this.update(0.0);
-	engine.music.play(music.rage, synths.distortion);
 };
 
 ArrangeScene.prototype.leave = function() {
