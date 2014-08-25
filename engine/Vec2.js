@@ -34,4 +34,8 @@ Vec2.prototype.normalized = function() {
 	}
 }
 
+Vec2.equals = function(a, b) {
+	return a.x == b.x && a.y == b.y;
+}
+
 exports = Vec2;
