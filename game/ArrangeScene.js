@@ -39,47 +39,28 @@ function rot_fragment(r, fragment, pivot) {
 	fragment.at.y += pivot.y - next.y;
 }
 
-var ArrangeScene = function(buildLevel, previousStoryState) {
-	this.level = buildLevel();
+var ArrangeScene = function(levelPath) {
 
-	//The first tile in every fragment is the 'key' to the fragment,
-	//and generally the point of interaction for that fragment.
-	//It should be located at (0,0), since fragments rotate around (0,0)
-	this.fragments = this.level.fragments;
+	//stored info about the last mouse event:
+	this.mouse2d = null; //screen position of mouse
+	this.mouseDown = false; //was button down
+	this.hoverInfo = null; //info about what the mouse is hovering over
+	this.dragInfo = null; //info about what the mouse is dragging
 
-	this.localState = {
-		played:{}
-	};
-	this.storyState = {};
-	if (previousStoryState) {
-		for (prop in previousStoryState) {
-			this.storyState[prop] = previousStoryState[prop];
-		}
-	}
+	this.scriptPlayer = null //if not null, there is a script a-playin' on this
 
-	this.scriptPlayer = null
-
-	this.currentFragment = null;
-
-	//builds this.combined, populates this.problems, and updates this.scriptTriggers:
-	this.buildCombined();
-
+	//camera is a simple lookAt camera:
 	this.camera = {
 		eye:new Vec3(5.0, 5.0, 5.0),
 		target:new Vec3(0.0, 0.0, 0.0),
 		up:new Vec3(0.0, 0.0, 1.0)
 	};
 
-	this.camera.target.x = this.combined.min.x + 0.5 * this.combined.size.x - 0.5;
-	this.camera.target.y = this.combined.min.y + 0.5 * this.combined.size.y - 0.5;
-	this.camera.eye = this.camera.target.plus(new Vec3(5.0, 5.0, 5.0));
+	//this is reset when select is redrawn:
+	this.selectTagMin = {x:0, y:0};
 
-	this.mouse2d = null; //screen position of mouse, if we have it
 
-	this.mouseDown = false;
-	this.hoverInfo = null; //info about tile mouse is hovering over
-	this.dragInfo = null; //info about tile mouse is dragging
-
+	//graphical flourish stuff:
 	this.spin = 0.0;
 	this.problemPulse = new game.vfx.pulse(
 		{r:200, g:170, b:100, a:170},
@@ -93,10 +74,73 @@ var ArrangeScene = function(buildLevel, previousStoryState) {
 		{r:200, g:50, b:0, a:170},
 		{r:255, g:0, b:0, a:0}
 	);
-	this.selectDirty = true;
-	this.selectTagMin = {x:0, y:0};
+
+	//This actually takes care of building the level:
+	this.setLevelPath(levelPath);
 
 	return this;
+};
+
+ArrangeScene.prototype.setLevelPath = function(levelPath) {
+	this.levelPath = levelPath;
+
+	//TODO: look up localState and storyState in some sort of state manager.
+	this.localState = {
+		played:{}
+	};
+	this.storyState = {};
+	/*
+	//TODO: if story state wasn't found, look up *previous* story state and move to this level.
+	if (previousStoryState) {
+		for (prop in previousStoryState) {
+			this.storyState[prop] = previousStoryState[prop];
+		}
+	}
+	*/
+
+	var buildLevel = game.levels[this.levelPath.split('.').pop()];
+
+	//build a new copy of the level:
+	this.level = buildLevel();
+	this.fragments = this.level.fragments;
+	//(TODO: copy fragment positions from localState as needed)
+	//builds this.combined, populates this.problems, and updates this.scriptTriggers:
+	this.buildCombined();
+
+	//reset all be book-keeping stuff:
+	this.camera.target.x = this.combined.min.x + 0.5 * this.combined.size.x - 0.5;
+	this.camera.target.y = this.combined.min.y + 0.5 * this.combined.size.y - 0.5;
+	this.camera.eye = this.camera.target.plus(new Vec3(5.0, 5.0, 5.0));
+
+	this.scriptPlayer = null
+
+	this.mouseDown = false;
+
+	this.hoverInfo = null; //info about tile mouse is hovering over
+	this.dragInfo = null; //info about tile mouse is dragging
+
+	this.selectDirty = true;
+};
+
+ArrangeScene.prototype.toNextLevel = function(levelName) {
+	var newPath = this.levelPath + '.' + levelName;
+	this.setLevelPath(newPath);
+};
+
+ArrangeScene.prototype.toPreviousLevel = function() {
+	var path = this.levelPath.split('.');
+	path.pop();
+	if (path.length == 0) {
+		//TODO: possibly back to start scene?
+		this.restartLevel();
+	} else {
+		this.setLevelPath('.'.join(path));
+	}
+};
+
+ArrangeScene.prototype.restartLevel = function() {
+	//TODO: clear localState and storyState in the state manager.
+	this.setLevelPath(this.levelPath);
 };
 
 var selectFb = null;
