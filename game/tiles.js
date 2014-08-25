@@ -64,8 +64,8 @@ exports = {
 		mesh:'pillar',
 		fill:o.low | o.high
 	}),
-	GiantSpeaker: new Tile({ // TODO
-		mesh:'pillar',
+	GiantSpeaker: new Tile({
+		mesh:'speaker',
 		fill:o.low | o.high
 	}),
 	Blackboard: new Tile({
