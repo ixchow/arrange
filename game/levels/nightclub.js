@@ -68,9 +68,9 @@ exports = function() {
 					mesh:meshes.characters.pawn,
 					actions:[
 						{appear:startTag},
-						{say:"it's hard to remember one night from the next"},
+						{say:"it's hard to remember one night from the next", cl:'char2'},
 						{appear:{x: 1, y: 1}},
-						{say:"if I wasn't drinking alone, I was dancing and drinking"},
+						{say:"if I wasn't drinking alone, I was dancing and drinking", cl:'char2'},
 						{vanish:null},
 					]
 				}
@@ -84,7 +84,7 @@ exports = function() {
 				pawn:{
 					mesh:meshes.characters.pawn,
 					actions:[
-						{narrate:"<i>DJ Viceroy</i> was pure legend"},
+						{narrate:"<i>DJ Viceroy</i> was pure legend", cl:'char2'},
 					]
 				}
 			}
@@ -141,13 +141,13 @@ exports = function() {
 
 			var actions = [];
 			actions.push({appear:firstPoints[0]});
-			actions.push({say:"now I remember the last drink I had"});
+			actions.push({say:"now I remember the last drink I had", cl:'char2'});
 			actions.push({walk:firstPoints});
-			actions.push({say:"I pushed up to the bar for a few shots"});
+			actions.push({say:"I pushed up to the bar for a few shots", cl:'char2'});
 			actions.push({walk:secondPoints});
-			actions.push({say:"I remember getting to the dance floor, but not much after that"});
+			actions.push({say:"I remember getting to the dance floor, but not much after that", cl:'char2'});
 			actions.push({walk:points});
-			actions.push({say:"the next day, I decided to change"});
+			actions.push({say:"the next day, I decided to change", cl:'char2'});
 			actions.push({vanish:null});
 			actions.push({warp:'grad'});
 
