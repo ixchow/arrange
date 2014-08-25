@@ -106,7 +106,6 @@ exports = function() {
 		});
 
 		if (arrange.solved) {
-			console.log(exitTag);
 			arrange.scriptTriggers.push({
 				at:exitTag,
 				advance:true,

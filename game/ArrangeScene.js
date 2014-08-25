@@ -46,13 +46,17 @@ var ArrangeScene = function(buildLevel, previousStoryState) {
 	//It should be located at (0,0), since fragments rotate around (0,0)
 	this.fragments = this.level.fragments;
 
-	this.localState = {};
+	this.localState = {
+		played:{}
+	};
 	this.storyState = {};
 	if (previousStoryState) {
 		for (prop in previousStoryState) {
 			this.storyState[prop] = previousStoryState[prop];
 		}
 	}
+
+	this.scriptPlayer = null
 
 	this.currentFragment = null;
 
@@ -136,9 +140,7 @@ ArrangeScene.prototype.resize = function() {
 };
 
 ArrangeScene.prototype.update = function(elapsed) {
-	this.problemPulse.advance(elapsed);
-	this.hoverPulse.advance(elapsed*1.7);
-	this.requirePulse.advance(elapsed);
+
 	
 	//--- move the camera a bit just for the heck of it ---
 	this.spin += elapsed;
@@ -162,6 +164,26 @@ ArrangeScene.prototype.update = function(elapsed) {
 
 	//since the view is changing, mark select as dirty:
 	this.selectDirty = true;
+
+
+	if (this.scriptPlayer) {
+		this.scriptPlayer.update(elapsed);
+		if (this.scriptPlayer.isFinished()) {
+			//Mark script as played:
+			this.localState.played[this.scriptPlayer.trigger.name] = true;
+			delete this.scriptPlayer;
+			//Update level (and script triggers), just in case:
+			this.buildCombined();
+
+			//...and continue with update as per normal...
+		} else {
+			return;
+		}
+	}
+
+	this.problemPulse.advance(elapsed);
+	this.hoverPulse.advance(elapsed*1.7);
+	this.requirePulse.advance(elapsed);
 
 	//--- if dragging something, update mouse2d ---
 
@@ -376,7 +398,8 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 					gl.vertexAttrib3f(s.aTag.location, tag.x / 255.0, tag.y / 255.0, ti / 255.0);
 				}
 				t.tile.emit();
-				if (t.t.pivot) {
+				//draw rotation action icons:
+				if (!this.scriptPlayer && t.t.pivot) {
 					var xf = new Mat4(
 						0.5, 0.0, 0.0, 0.0,
 						0.0, 0.5, 0.0, 0.0,
@@ -394,30 +417,31 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 		}
 	}
 
-	//Draw action icons (script triggers, rotations):
-	var selectTagMin = this.selectTagMin;
-	this.scriptTriggers.forEach(function(st){
-		//TODO: if script has played already, skip drawing
-		var xf = new Mat4(
-			0.5, 0.0, 0.0, 0.0,
-			0.0, 0.5, 0.0, 0.0,
-			0.0, 0.0, 0.5, 0.0,
-			st.at.x, st.at.y, 0.0, 1.0
-		);
-		gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
-		//TODO: select icon based on script info (e.g. different icon for exit)
-		//TODO: orient for viewing direction
-		if (drawSelect) {
-			var tag = {
-				x:st.at.x - selectTagMin.x,
-				y:st.at.y - selectTagMin.y
-			};
-			gl.vertexAttrib3f(s.aTag.location, tag.x / 255.0, tag.y / 255.0, 255);
-		}
+	//Draw action icons (script triggers):
+	if (!this.scriptPlayer) {
+		var selectTagMin = this.selectTagMin;
+		this.scriptTriggers.forEach(function(st){
+			//TODO: if script has played already, skip drawing
+			var xf = new Mat4(
+				0.5, 0.0, 0.0, 0.0,
+				0.0, 0.5, 0.0, 0.0,
+				0.0, 0.0, 0.5, 0.0,
+				st.at.x, st.at.y, 0.0, 1.0
+			);
+			gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
+			//TODO: select icon based on script info (e.g. different icon for exit)
+			//TODO: orient for viewing direction
+			if (drawSelect) {
+				var tag = {
+					x:st.at.x - selectTagMin.x,
+					y:st.at.y - selectTagMin.y
+				};
+				gl.vertexAttrib3f(s.aTag.location, tag.x / 255.0, tag.y / 255.0, 255);
+			}
 
-		meshes.icons.play.emit();
-	});
-
+			meshes.icons.play.emit();
+		});
+	}
 
 	if (!drawSelect && this.paths && this.paths.length > 0) {
 		s = shaders.select; //temp, will be shaders.path at some pt
@@ -445,7 +469,7 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 		gl.useProgram(s);
 	}
 
-	if (!drawSelect) {
+	if (!this.scriptPlayer && !drawSelect) {
 		gl.uniformMatrix4fv(s.uMVP.location, false, MVP);
 		this.problemPulse.draw(this.problems, MVP);
 		if (this.hoverInfo) {
@@ -465,7 +489,7 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 		this.requirePulse.draw(this.require_problems, MVP);
 	}
 
-	if (!drawSelect) {
+	if (!this.scriptPlayer && !drawSelect) {
 		if (this.mouse2d) {
 			var mouse3d;
 			if (this.dragInfo) {
@@ -484,6 +508,10 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 			gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(ofs));
 			meshes.shapes.sphere.emit();
 		}
+	}
+
+	if (!drawSelect && this.scriptPlayer) {
+		this.scriptPlayer.draw(this.MVP);
 	}
 
 	if (drawSelect) {
@@ -670,6 +698,17 @@ ArrangeScene.prototype.updateDrag = function() {
 ArrangeScene.prototype.mouse = function(x, y, isDown) {
 	this.mouse2d = {x:x, y:y};
 
+	if (this.scriptPlayer) {
+		this.hoverInfo = null;
+		this.dragInfo = null;
+		if (!isDown && this.mouseDown) {
+			this.mouseDown = false;
+		} else if (isDown && !this.mouseDown) {
+			this.scriptPlayer.advance();
+		}
+		return;
+	}
+
 	if (!isDown && this.mouseDown) {
 		this.mouseDown = false;
 		//release drag, if dragging:
@@ -691,7 +730,10 @@ ArrangeScene.prototype.mouse = function(x, y, isDown) {
 	if (isDown && !this.mouseDown) {
 		if (this.hoverInfo) {
 			if (this.hoverInfo.scriptTrigger) {
-				console.log("Would play script '" + this.hoverInfo.scriptTrigger.name + "' here.");
+				//console.log("Will play script '" + this.hoverInfo.scriptTrigger.name + "'");
+				this.scriptPlayer = new game.ScriptPlayer(this.hoverInfo.scriptTrigger.script);
+				//stash this reference for later use:
+				this.scriptPlayer.trigger = this.hoverInfo.scriptTrigger;
 			} else if (this.hoverInfo.fragment) {
 				if (this.hoverInfo.t.pivot) {
 					console.log("Rotating");
