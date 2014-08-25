@@ -84,7 +84,6 @@ exports = {
 	}),
 	FreeChair: new Tile({
 		mesh:'chair',
-		fill:o.low
 	}),
 	HamsterCage: new Tile({
 		mesh:'hamster_cage',

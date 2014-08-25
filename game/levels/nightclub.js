@@ -68,7 +68,7 @@ exports = function() {
 					mesh:meshes.characters.pawn,
 					actions:[
 						{appear:startTag},
-						{say:"underground clubbing"},
+						{say:"drinking and dancing, this was my life"},
 						{vanish:null},
 					]
 				}
