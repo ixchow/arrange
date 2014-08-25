@@ -84,19 +84,154 @@ var ArrangeScene = function(levelPath) {
 //Helper which builds a mesh representing a bunch of locations.
 // the mesh will have a 'emit()' method.
 function buildFloor(locs) {
-	
-	var verts2 = [];
+	if (locs.length == 0) {
+		return {
+			emit:function() { }
+		};
+	}
+
+	//splat locs into a grid:
+	var min = {x:locs[0].x, y:locs[0].y};
+	var max = {x:min.x, y:min.y};
 	locs.forEach(function(l){
-		verts2.push(l.x - 0.5, l.y - 0.5);
-		verts2.push(l.x - 0.5, l.y - 0.5);
-		verts2.push(l.x - 0.5, l.y + 0.5);
-		verts2.push(l.x + 0.5, l.y - 0.5);
-		verts2.push(l.x + 0.5, l.y + 0.5);
-		verts2.push(l.x + 0.5, l.y + 0.5);
+		min.x = Math.min(min.x, l.x);
+		min.y = Math.min(min.y, l.y);
+		max.x = Math.max(max.x, l.x);
+		max.y = Math.max(max.y, l.y);
 	});
+	//add a 1-unit border so I can skip some checks later:
+	min.x -= 1; min.y -= 1; max.x += 1; max.y += 1;
+
+	var size = {x:max.x - min.x + 1, y:max.y - min.y + 1};
+	//grid stores several bits:
+	//1 -> occupancy
+	// 2-16 edge usage (later)
+	var grid = new Uint8Array(size.x * size.y);
+	locs.forEach(function(l){
+		grid[(l.y - min.y) * size.x + (l.x - min.x)] = 1;
+	});
+	for (var y = 1; y + 1 < size.y; ++y) {
+		for (var x = 1; x + 1 < size.x; ++x) {
+			var idx = y * size.x + x;
+			if (grid[idx] & 1) continue;
+		}
+	}
+
+	//build tristrip:
+	var verts2 = [];
+	var colors = [];
+	//solid tiles:
+	for (var y = 1; y + 1 < size.y; ++y) {
+		for (var x = 1; x + 1 < size.x; ++x) {
+			if (grid[y * size.x + x] & 1) {
+				var lx = min.x + x;
+				var ly = min.y + y;
+				verts2.push(lx - 0.5, ly - 0.5); colors.push(0xffffffff);
+				verts2.push(lx - 0.5, ly - 0.5); colors.push(0xffffffff);
+				verts2.push(lx - 0.5, ly + 0.5); colors.push(0xffffffff);
+				verts2.push(lx + 0.5, ly - 0.5); colors.push(0xffffffff);
+				verts2.push(lx + 0.5, ly + 0.5); colors.push(0xffffffff);
+				verts2.push(lx + 0.5, ly + 0.5); colors.push(0xffffffff);
+			}
+		}
+	}
+
+	//edges:
+	var dirs = [
+		{x: 1, y: 0},
+		{x: 0, y: 1},
+		{x:-1, y: 0},
+		{x: 0, y:-1},
+	];
+	dirs.forEach(function(d, di){
+		d.incr = d.y * size.x + d.x;
+		d.right = {x:d.y, y:-d.x};
+		d.right.incr = d.right.y * size.x + d.right.x;
+		d.bit = 2 << di;
+	});
+
+	/* DEBUG
+	var out = "  ";
+	for (var sx = 0; sx < size.x; ++sx) {
+		out += sx;
+	}
+	out += "\n";
+	for (var sy = size.y-1; sy >= 0; --sy) {
+		out += sy + ":";
+		for (var sx = 0; sx < size.x; ++sx) {
+			var idx = sy * size.x + sx;
+			if (grid[idx] & 1) out += "X";
+			else out += '.';
+		}
+		out += "\n";
+	}
+	console.log(out);
+	*/
+
+	for (var sy = 1; sy + 1 < size.y; ++sy) {
+		for (var sx = 0; sx + 1 < size.x; ++sx) {
+			var idx = sy * size.x + sx;
+			//look for an empty tile...
+			if (grid[idx] & 1) continue;
+			//with a full tile to the right...
+			if (!(grid[idx + 1] & 1)) continue;
+
+			var d = 1;
+			var loop = [];
+			while (!(grid[idx] & dirs[d].bit)) {
+				grid[idx] |= dirs[d].bit;
+				var at = new Vec2( idx % size.x, (idx / size.x) | 0);
+				at.x += min.x + 0.5 * dirs[d].right.x - 0.5 * dirs[d].x;
+				at.y += min.y + 0.5 * dirs[d].right.y - 0.5 * dirs[d].y;
+				loop.push(at);
+				if (grid[idx + dirs[d].incr] & 1) {
+					//turn left if blocked from the front:
+					d = (d + 1) % 4;
+				} else if (grid[idx + dirs[d].incr + dirs[d].right.incr] & 1) {
+					//go straight if wall continues:
+					idx += dirs[d].incr;
+				} else {
+					//turn right otherwise:
+					idx += dirs[d].incr + dirs[d].right.incr;
+					d = (d + 3) % 4;
+				}
+			}
+
+			if (loop.length > 0) {
+				var prev = loop[loop.length - 2];
+				var cur = loop[loop.length - 1];
+				var prevOut = cur.minus(prev).normalized().perpendicular();
+				loop.push(loop[0]);
+				for (var i = 0; i < loop.length; ++i) {
+					var next = loop[i];
+					var nextOut = next.minus(cur).normalized().perpendicular();
+
+					var out = prevOut.plus(nextOut);
+
+					var d = 1.0 / out.dot(nextOut);
+
+					out = out.times(0.2 * d);
+
+					if (i == 0) {
+						verts2.push(cur.x, cur.y); colors.push(0xffffffff);
+					}
+					verts2.push(cur.x, cur.y); colors.push(0xffffffff);
+					verts2.push(cur.x + out.x, cur.y + out.y); colors.push(0x00ffffff);
+					if (i + 1 == loop.length) {
+						verts2.push(cur.x + out.x, cur.y + out.y); colors.push(0x00ffffff);
+					}
+
+					prev = cur;
+					cur = next;
+					prevOut = nextOut;
+				}
+			}
+		}
+	}
 
 	var mesh = {
 		verts2:new Float32Array(verts2),
+		colors4:new Uint32Array(colors),
 		emit:function() {
 			var s = gl.getParameter(gl.CURRENT_PROGRAM);
 
@@ -108,7 +243,11 @@ function buildFloor(locs) {
 
 			var colorsBuffer = null;
 			if (s.aColor) {
-				gl.vertexAttrib4f(s.aColor.location, 1.0, 1.0, 1.0, 1.0);
+				colorsBuffer = gl.createBuffer();
+				gl.bindBuffer(gl.ARRAY_BUFFER, colorsBuffer);
+				gl.bufferData(gl.ARRAY_BUFFER, this.colors4, gl.STREAM_DRAW);
+				gl.vertexAttribPointer(s.aColor.location, 4, gl.UNSIGNED_BYTE, true, 0, 0);
+				gl.enableVertexAttribArray(s.aColor.location);
 			}
 			if (s.aNormal) {
 				gl.vertexAttrib3f(s.aColor.location, 0.0, 0.0, 1.0);
@@ -116,6 +255,10 @@ function buildFloor(locs) {
 
 			gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.verts2.length / 2);
 
+			if (s.aColor) {
+				gl.disableVertexAttribArray(s.aColor.location);
+				gl.deleteBuffer(colorsBuffer);
+			}
 			gl.disableVertexAttribArray(s.aVertex.location);
 			gl.deleteBuffer(vertsBuffer);
 			delete vertsBuffer;
@@ -157,6 +300,7 @@ ArrangeScene.prototype.setLevelPath = function(levelPath) {
 		});
 		//build floor:
 		f.floor = buildFloor(f.tiles.map(function(t){return t.at;}));
+		f.pulse = 0.0; f.pulseSpeed = 1.0;
 	});
 
 
@@ -348,6 +492,15 @@ ArrangeScene.prototype.update = function(elapsed) {
 		});
 	});
 
+	//--- update floor pulsing animation ---
+	this.fragments.forEach(function(f){
+		f.pulse -= elapsed * f.pulseSpeed;
+		if (f.pulse < 0.0) {
+			f.pulse = 1.0 + Math.random();
+			f.pulseSpeed = Math.pow(2.0, 2.0 * Math.random() - 1.0);
+		}
+	});
+
 }
 
 ArrangeScene.prototype.buildCombined = function() {
@@ -377,7 +530,7 @@ ArrangeScene.prototype.buildCombined = function() {
 		this.combined.size = {x:0, y:0};
 		return;
 	}
-	this.combined = Array((max.x - min.x + 1) * (max.y - min.y + 1));
+	this.combined = new Array((max.x - min.x + 1) * (max.y - min.y + 1));
 	this.combined.min = min;
 	this.combined.size = {x:max.x - min.x + 1, y:max.y - min.y + 1};
 
@@ -521,6 +674,8 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 	//Draw floor under everything:
 	if (!drawSelect) {
 		gl.enable(gl.BLEND);
+		gl.blendEquation(gl.FUNC_ADD);
+		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 		gl.disable(gl.DEPTH_TEST);
 		if (!this.floor) {
 			var locs = [];
@@ -537,11 +692,15 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 			this.floor = buildFloor(locs);
 		}
 		gl.uniformMatrix4fv(s.uMVP.location, false, MVP);
-		gl.uniform4f(s.uTint.location, 0.0, 0.0, 0.0, 1.0);
+		gl.uniform4f(s.uTint.location, 0.0, 0.0, 0.0, 0.5);
 		this.floor.emit();
 
+		var selected = null;
 		if (this.hoverInfo && this.hoverInfo.fragment) {
-			var f = this.hoverInfo.fragment;
+			selected = this.hoverInfo.fragment;
+		}
+		this.fragments.forEach(function(f, fi){
+			if (f.fixed && f.pivots.length == 0) return;
 			var xd = rot(f.r,{x:1, y:0});
 			var yd = rot(f.r,{x:0, y:1});
 			var xf = new Mat4(
@@ -551,9 +710,17 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 				f.at.x, f.at.y, 0.0, 1.0
 			);
 			gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
-			gl.uniform4f(s.uTint.location, 0.0, 1.0, 0.0, 1.0);
+			if (f === selected) {
+				gl.uniform4f(s.uTint.location, 1.0, 1.0, 1.0, 0.7);
+			} else {
+				var p = 0.0;
+				if (f.pulse < 0.8) {
+					p = 0.5 - Math.cos(f.pulse / 0.8 * Math.PI * 2.0) * 0.5;
+				}
+				gl.uniform4f(s.uTint.location, 1.0, 1.0, 1.0, p * 0.2);
+			}
 			f.floor.emit();
-		}
+		});
 		gl.disable(gl.BLEND);
 		gl.enable(gl.DEPTH_TEST);
 	}
