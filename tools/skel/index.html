@@ -2,6 +2,7 @@
 <html>
 <head>
 <title>Fragmented Memories</title>
+<link href='http://fonts.googleapis.com/css?family=Raleway' rel='stylesheet' type='text/css'>
 <script>
 $JAVASCRIPT
 </script>
@@ -35,12 +36,42 @@ body {
 a {
 	color:#666;
 }
+#text-container {
+	position: relative;
+	top: -28px;
+	left: -25px;
+}
+#text-container div {
+	position: absolute;
+	font-family: 'Raleway', sans-serif;
+	font-size: 50px;
+	padding: 6px 10px;
+	background-color: rgba(30, 30, 30, 0.7);
+	border-radius: 5px;
+	border: 1px solid #666;
+	color: #eee;
+	transition:visibility 0s linear 0.5s,opacity 0.5s linear;
+}
+#text-container div span {
+	width: 0;
+	height: 0;
+	border-left: 15px solid transparent;
+	border-right: 25px solid transparent;
+	border-top: 30px solid #666;
+	position: absolute;
+	bottom: -30px;
+}
 </style>
 </head>
 <body onload="engine.core.init(function() { engine.CurrentScene = new game.StartScene() });">
 	<button onclick="engine.music.toggleMute()">Mute Music</button>
 	<button onclick="engine.sfx.toggleMute()">Mute SFX</button>
-<div id="game"><canvas id="canvas"></canvas></div>
+<div id="game">
+	<canvas id="canvas"></canvas>
+	<div id="text-container">
+		<div style="position: absolute; bottom: 10px; left: 100px"><span></span>JSKDLFJ</div>
+	</div>
+</div>
 <p>
 (This is a LD game framework by avh4 and ix.)
 </p>
