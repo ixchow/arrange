@@ -1,15 +1,15 @@
 exports = function() {
 	var tileMap = {
 		S: { r: 2, t: game.tiles.PathStart },
-		E: { r: 0, t: game.tiles.PathEnd },
+		E: { r: 0, t: game.tiles.PathEnd, tag: 'exit' },
 		P: { r: 0, t: game.tiles.Pillar },
 		'|': { r: 1, t: game.tiles.PathStraight },
 		'-': { r: 0, t: game.tiles.PathStraight },
 		'{': { r: 2, t: game.tiles.PathLeft },
 		'[': { r: 3, t: game.tiles.PathLeft },
 		']': { r: 0, t: game.tiles.PathLeft },
-		H: { r: 0, t: game.tiles.HamsterCage },
-		h: { r: 0, t: game.tiles.Hamster },
+		H: { r: 0, t: game.tiles.HamsterCage, tag: 'cage' },
+		h: { r: 0, t: game.tiles.Hamster, tag: 'hamster' },
 		D: { r: 0, t: game.tiles.Desk },
 		B: { r: 0, t: game.tiles.Blackboard },
 		d: { r: 0, t: game.tiles.SmallDesk },
@@ -28,7 +28,81 @@ exports = function() {
 	txt += "[. S. .. .. .. .. .. .. k. ..\n";
 	txt += ".. .. .. .. d3 .. d3 .. .. ..\n";
 
-	return game.buildLevel(tileMap, txt);
-};
+	var level = game.buildLevel(tileMap, txt);
+	
+  // function p2a(p) {
+  // 	return {
+  // 		x: p.x + arrange.combined.min.x,
+  // 		y: p.y + arrange.combined.min.y
+  // 	};
+  // }
+  // arrange.paths.some(function(path) {
+  // 	var pts = path.map(p2a);
+  // 	if (pts.length >= 2 && pts[0].x == bedTag.x && pts[1].y == bedTag.y) {
+  // 		points = pts;
+  // 		return true;
+  // 	}
+  // 	return false;
+  // });
+	
+	level.addScriptTriggers = function(arrange) {
+		var hamsterTag = arrange.findTag("hamster");
+		var exitTag = arrange.findTag("exit");
 
-// console.log(exports());
+		arrange.scriptTriggers = [];
+
+		console.log(hamsterTag);
+		console.log(arrange.findTag("cage"));
+		if (engine.Vec2.equals(hamsterTag, arrange.findTag("cage"))) {
+			arrange.scriptTriggers.push({
+				at:hamsterTag,
+				name:"hamsterCaged",
+				script:{
+					pawn:{
+						mesh:meshes.characters.pawn,
+						actions:[
+							{appear:hamsterTag},
+							{say:"I remember feeding the class hamster..."},
+							{vanish:null},
+						]
+					}
+				}
+			});
+		} else {
+			arrange.scriptTriggers.push({
+				at:hamsterTag,
+				name:"hamsterFree",
+				script:{
+					pawn:{
+						mesh:meshes.characters.pawn,
+						actions:[
+							{appear:hamsterTag},
+							{say:"One day the class hamster escaped..."},
+							{vanish:null},
+						]
+					}
+				}
+			});
+		}
+
+		if (arrange.solved) {
+			arrange.scriptTriggers.push({
+				at:exitTag,
+				advance:true,
+				name:"finish",
+				script:{
+					pawn:{
+						mesh:meshes.characters.pawn,
+						actions:[
+							{appear:exitTag},
+							{say:"I should be walking this path"},
+							{vanish:null},
+						]
+					}
+				}
+			});
+		}
+	};
+
+	return level;
+};
