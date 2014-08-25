@@ -168,7 +168,7 @@ ScriptPlayer.prototype.draw = function(MVP) {
 					ps.txtObj = new engine.text(ps.txt, pos);
 					console.log(ps.txtObj);
 				} else {
-					//TODO: update txt position
+					ps.txtObj.moveTo(pos);
 				}
 			}
 		}
