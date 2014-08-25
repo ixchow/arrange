@@ -77,7 +77,7 @@ exports = function() {
 						mesh:meshes.characters.pawn,
 						actions:[
 							{appear:hamsterTag},
-							{say:"One day the class hamster escaped..."},
+							{say:"What happened to our class hamster..."},
 							{vanish:null},
 						]
 					}
