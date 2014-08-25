@@ -72,6 +72,14 @@ exports = {
 		mesh:'pillar',
 		fill:o.low | o.high | o.person,
 	}),
+	Box: new Tile({
+		mesh:'desk',
+		fill:o.low | o.person,
+	}),
+	Pole: new Tile({
+		mesh:'pole',
+		fill:o.low | o.high | o.person,
+	}),
 	GiantSpeaker: new Tile({
 		mesh:'speaker',
 		fill:o.low | o.high | o.person,
@@ -117,7 +125,7 @@ exports = {
 		fill:o.low,
 	}),
 	BlockPerson: new Tile({
-		mesh:'pawn',
+		mesh:'fatpawn',
 		fill:o.low|o.high|o.person
 	}),
 	SqueezePerson: new Tile({

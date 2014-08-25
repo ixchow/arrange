@@ -720,7 +720,7 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 				if (f.pulse < 0.8) {
 					p = 0.5 - Math.cos(f.pulse / 0.8 * Math.PI * 2.0) * 0.5;
 				}
-				gl.uniform4f(s.uTint.location, 1.0, 1.0, 1.0, p * 0.2 + 0.1);
+				gl.uniform4f(s.uTint.location, 1.0, 1.0, 1.0, p * 0.05 + 0.1);
 			}
 			f.floor.emit();
 		});

@@ -23,14 +23,17 @@ def to_normalized_uint8(val):
 
 #Write a mesh with just position:
 def mesh_data(obj):
+	bpy.context.scene.layers = obj.layers
 	try:
 		bpy.ops.object.mode_set(mode='OBJECT')
 	except:
 		print("Ignoring error setting mode to object")
 		
 	obj.data = obj.data.copy() #"make single user" (?)
-	bpy.ops.object.convert(target='MESH', keep_original=False) #apply modifiers:
-	bpy.context.scene.layers = obj.layers
+	try:
+		bpy.ops.object.convert(target='MESH', keep_original=False) #apply modifiers:
+	except:
+		print("Ignoring error applying modifiers")
 	#First, triangulate the mesh:
 	bpy.ops.object.select_all(action='DESELECT')
 	obj.select = True
