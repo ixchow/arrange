@@ -55,6 +55,7 @@ exports = function() {
 	
 	level.fragments = level.fragments.concat(game.buildLevel(tileMap, txt2).fragments);
 	
+	// Scramble fragments
 	level.fragments.forEach(function(f) {
 		if (f.fixed) return;
 		f.at.x += Math.floor(Math.random() * 4) - 2;

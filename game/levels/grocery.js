@@ -21,10 +21,10 @@ exports = function() {
 	var txt = "";
 	txt += ".. B. B. B. B. B. B. B. B. B. ).\n";
 	txt += ".. {1 -. -. -. }. .. .. .. .. ).\n";
-	txt += ".. |1 .. .. .. [. -. -. }. .. ).\n";
-	txt += ".. |1 c1 c. .. .. c. c. |. .. ).\n";
-	txt += ".. |. .. .. {. -. -. }. |. .. ).\n";
-	txt += ".. |. |. B2 |2 .. B. |. |. B. ).\n";
+	txt += ".. |1 .. .. .. [. -4 -4 }4 .. ).\n";
+	txt += ".. |1 c1 c. .. .. c4 c4 |5 .. ).\n";
+	txt += ".. |. .. .. {. -. -. }. |5 .. ).\n";
+	txt += ".. |. |. B2 |2 .. B. |. |5 B. ).\n";
 	txt += ".. |. |. B2 *2 .. B. |. F. B. ).\n";
 	txt += ".. |. |. B2 [2 }2 B. |. E. B. ).\n";
 	txt += "{. ]. |a Ba .. |. B9 |8 |8 B8 ).\n";
@@ -32,10 +32,20 @@ exports = function() {
 	txt += "|. .. .. Ba .. |3 B9 [8 ]8 B8 ).\n";
 	txt += "|. .. .. {. -3 ]3 .. .. .. .. ).\n";
 	txt += "|. {. -. ]. .. .. .. .. B5 .. ).\n";
-	txt += "|. |. d5 |5 d4 .. d7 .. B5 .. ).\n";
+	txt += "|. |. d. |. d. .. d. .. B5 .. ).\n";
 	txt += "S. T. .. .. .. .. .. .. .. .. ..\n";
 
 	var level = game.buildLevel(tileMap, txt);
+	
+	// Scramble fragments
+	level.fragments.forEach(function(f) {
+		if (f.fixed) return;
+		f.at.x += Math.floor(Math.random() * 4) - 2;
+		f.at.y += Math.floor(Math.random() * 4) - 2;
+		if (f.tiles.some(function(t) { return !!t.pivot })) {
+			f.r += Math.floor(Math.random() * 4);
+		}
+	});
 
 	level.music = music.mikeover;
 	level.synth = synths.bells;
