@@ -46,11 +46,13 @@ def mesh_data(obj):
 	bpy.ops.object.mode_set(mode='OBJECT')
 
 	#Consider possibly using code to bake color:
-	if True: #do_flags & BakeColor:
+	try:
 		bpy.ops.mesh.vertex_color_add()
 		bpy.context.scene.render.bake_type = 'FULL'
 		bpy.context.scene.render.use_bake_to_vertex_color = True
 		bpy.ops.object.bake_image()
+	except:
+		print("Ignoring error during bake")
 
 	verts = []
 	#if do_flags & BakeTransform:

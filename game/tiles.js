@@ -131,7 +131,10 @@ exports = {
 	SqueezePerson: new Tile({
 		mesh:'pawn',
 		fill:o.person
-	})
+	}),
+	Empty: new Tile({
+		mesh:'empty'
+	}),
 };
 
 exports.linkTiles = function() {
