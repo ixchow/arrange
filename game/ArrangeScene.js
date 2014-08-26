@@ -598,8 +598,8 @@ ArrangeScene.prototype.updateScriptTriggers = function() {
 ArrangeScene.prototype.checkCombined = function() {
 	var combined = this.combined;
 	this.problems = game.problems.determineProblems(combined);
-	this.paths = game.paths.determinePaths(combined, this.problems);
 	this.require_problems = game.provides_requires.check(combined);
+	this.paths = game.paths.determinePaths(combined);
 	var pathsSolved = this.paths.every(function(path){
 		if (path.length < 2) return false;
 		var last = path[path.length-1];
@@ -808,7 +808,7 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 			var tag = {x:at.x - this.selectTagMin.x, y:at.y - this.selectTagMin.y};
 
 			stack.forEach(function(t, ti){
-				if (t.path && !drawSelect) return;
+				if (!t.hasProblem && (t.path && !drawSelect)) return;
 				if (t.hasProblem && !drawSelect) {
 					var _at = {x:at.x, y:at.y};
 					var _t = t;

@@ -1,12 +1,13 @@
 var rot = function() { return game.utility.rot.apply(this, arguments); }
 
 exports = {
-	determinePaths: function(combined, problems) {
+	determinePaths: function(combined) {
 		var paths = [];
 
 		//Start paths with sources:
 		combined.forEach(function(stack, idx){
 			stack.forEach(function(s, si){
+				if (s.hasProblem) return;
 				if (('pathOut' in s.tile) && !('pathIn' in s.tile)) {
 					var d = (s.r + s.tile.pathOut) % 4;
 					paths.push([{
@@ -34,7 +35,7 @@ exports = {
 					var found = null;
 					var foundForward = true;
 					stack.some(function(s){
-						if (problems.at(next)) return false;
+						if (s.hasProblem) return false;
 						if ('pathIn' in s.tile) {
 							var d = (s.r + s.tile.pathIn) % 4;
 							if (d == (a.d + 2) % 4) {
