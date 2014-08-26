@@ -30,8 +30,8 @@ exports = function() {
 	txt += "|3 d. d. ).\n";
 	txt += "|3 d. -6 ).\n";
 	txt += "p. d. p. ).\n";
-	txt += "|. d. |1 ).\n";
-	txt += "S. d. {2 ).\n";
+	txt += "|. d. }1 ).\n";
+	txt += "S. d. |1 ).\n";
 
 	var level = game.buildLevel(tileMap, txt);
 	
@@ -145,9 +145,9 @@ exports = function() {
 			actions.push({walk:firstPoints});
 			actions.push({say:"I pushed up to the bar for a few shots", cl:'char2'});
 			actions.push({walk:secondPoints});
-			actions.push({say:"I remember getting to the dance floor, but not much after that", cl:'char2'});
+			actions.push({say:"I remember getting to the dance floor...", cl:'char2'});
 			actions.push({walk:points});
-			actions.push({say:"the next day, I decided to change", cl:'char2'});
+			actions.push({say:"then I must have blacked out", cl:'char2'});
 			actions.push({vanish:null});
 			actions.push({warp:'grad'});
 
