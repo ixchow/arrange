@@ -60,9 +60,9 @@ exports = function() {
 					mesh:meshes.characters.pawn,
 					actions:[
 						{appear:startTag},
-						{say:"I remember my first AA meeting..."},
+						{say:"I remember my first AA meeting...", cl:'char2'},
 						{appear:exitTag},
-						{say:"...everyone was sitting in a circle..."},
+						{say:"...everyone was sitting in a circle...", cl:'char2'},
 						{vanish:null},
 					]
 				}
@@ -76,7 +76,7 @@ exports = function() {
 				pawn:{
 					mesh:meshes.characters.pawn,
 					actions:[
-						{narrate:"that was Riley's chair..."},
+						{narrate:"that was Riley's chair...", cl:'char2'},
 					]
 				}
 			}
@@ -94,13 +94,13 @@ exports = function() {
 
 			var actions = [];
 			actions.push({appear:firstPoints[0]});
-			actions.push({say:"now I remember"});
+			actions.push({say:"now I remember", cl:'char2'});
 			actions.push({walk:firstPoints});
-			actions.push({say:"I felt shame as I entered the room"});
+			actions.push({say:"I felt shame as I entered the room", cl:'char2'});
 			actions.push({walk:secondPoints});
-			actions.push({say:"I avoided eye contact as everyone watched"});
+			actions.push({say:"I avoided eye contact as everyone watched", cl:'char2'});
 			actions.push({walk:points});
-			actions.push({say:"but I finally took a seat..."});
+			actions.push({say:"but I finally took a seat...", cl:'char2'});
 			actions.push({vanish:null});
 			actions.push({warp:'grocery'});
 

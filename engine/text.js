@@ -1,8 +1,9 @@
 var height;
 
-function Text(text, at) {
+function Text(text, at, cl) {
 	this.container = document.getElementById('text-container');
 	this.div = document.createElement('div');
+	this.div.className = cl;
 
   this.text = text;
 	this.moveTo(at);

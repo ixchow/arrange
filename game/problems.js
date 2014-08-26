@@ -29,6 +29,7 @@ exports = {
 						if (s.tile.fill) conflicted |= s.tile.fill & conflict;
 						if (s.tile.needClear) conflicted |= s.tile.needClear & conflict;
 						if (conflicted) {
+							s.hasProblem = true;
 							hasProblem[idx] = true;
 						}
 					});
@@ -58,6 +59,7 @@ exports = {
 			stack.forEach(function(s){
 				var d = build_d(s);
 				if (d & conflict) {
+					s.hasProblem = true;
 					hasProblem[idx] = true;
 				}
 			});

@@ -81,6 +81,194 @@ var ArrangeScene = function(levelPath) {
 	return this;
 };
 
+//Helper which builds a mesh representing a bunch of locations.
+// the mesh will have a 'emit()' method.
+function buildFloor(locs) {
+	if (locs.length == 0) {
+		return {
+			emit:function() { }
+		};
+	}
+
+	//splat locs into a grid:
+	var min = {x:locs[0].x, y:locs[0].y};
+	var max = {x:min.x, y:min.y};
+	locs.forEach(function(l){
+		min.x = Math.min(min.x, l.x);
+		min.y = Math.min(min.y, l.y);
+		max.x = Math.max(max.x, l.x);
+		max.y = Math.max(max.y, l.y);
+	});
+	//add a 1-unit border so I can skip some checks later:
+	min.x -= 1; min.y -= 1; max.x += 1; max.y += 1;
+
+	var size = {x:max.x - min.x + 1, y:max.y - min.y + 1};
+	//grid stores several bits:
+	//1 -> occupancy
+	// 2-16 edge usage (later)
+	var grid = new Uint8Array(size.x * size.y);
+	locs.forEach(function(l){
+		grid[(l.y - min.y) * size.x + (l.x - min.x)] = 1;
+	});
+	for (var y = 1; y + 1 < size.y; ++y) {
+		for (var x = 1; x + 1 < size.x; ++x) {
+			var idx = y * size.x + x;
+			if (grid[idx] & 1) continue;
+		}
+	}
+
+	//build tristrip:
+	var verts2 = [];
+	var colors = [];
+	//solid tiles:
+	for (var y = 1; y + 1 < size.y; ++y) {
+		for (var x = 1; x + 1 < size.x; ++x) {
+			if (grid[y * size.x + x] & 1) {
+				var lx = min.x + x;
+				var ly = min.y + y;
+				verts2.push(lx - 0.5, ly - 0.5); colors.push(0xffffffff);
+				verts2.push(lx - 0.5, ly - 0.5); colors.push(0xffffffff);
+				verts2.push(lx - 0.5, ly + 0.5); colors.push(0xffffffff);
+				verts2.push(lx + 0.5, ly - 0.5); colors.push(0xffffffff);
+				verts2.push(lx + 0.5, ly + 0.5); colors.push(0xffffffff);
+				verts2.push(lx + 0.5, ly + 0.5); colors.push(0xffffffff);
+			}
+		}
+	}
+
+	//edges:
+	var dirs = [
+		{x: 1, y: 0},
+		{x: 0, y: 1},
+		{x:-1, y: 0},
+		{x: 0, y:-1},
+	];
+	dirs.forEach(function(d, di){
+		d.incr = d.y * size.x + d.x;
+		d.right = {x:d.y, y:-d.x};
+		d.right.incr = d.right.y * size.x + d.right.x;
+		d.bit = 2 << di;
+	});
+
+	/* DEBUG
+	var out = "  ";
+	for (var sx = 0; sx < size.x; ++sx) {
+		out += sx;
+	}
+	out += "\n";
+	for (var sy = size.y-1; sy >= 0; --sy) {
+		out += sy + ":";
+		for (var sx = 0; sx < size.x; ++sx) {
+			var idx = sy * size.x + sx;
+			if (grid[idx] & 1) out += "X";
+			else out += '.';
+		}
+		out += "\n";
+	}
+	console.log(out);
+	*/
+
+	for (var sy = 1; sy + 1 < size.y; ++sy) {
+		for (var sx = 0; sx + 1 < size.x; ++sx) {
+			var idx = sy * size.x + sx;
+			//look for an empty tile...
+			if (grid[idx] & 1) continue;
+			//with a full tile to the right...
+			if (!(grid[idx + 1] & 1)) continue;
+
+			var d = 1;
+			var loop = [];
+			while (!(grid[idx] & dirs[d].bit)) {
+				grid[idx] |= dirs[d].bit;
+				var at = new Vec2( idx % size.x, (idx / size.x) | 0);
+				at.x += min.x + 0.5 * dirs[d].right.x - 0.5 * dirs[d].x;
+				at.y += min.y + 0.5 * dirs[d].right.y - 0.5 * dirs[d].y;
+				loop.push(at);
+				if (grid[idx + dirs[d].incr] & 1) {
+					//turn left if blocked from the front:
+					d = (d + 1) % 4;
+				} else if (grid[idx + dirs[d].incr + dirs[d].right.incr] & 1) {
+					//go straight if wall continues:
+					idx += dirs[d].incr;
+				} else {
+					//turn right otherwise:
+					idx += dirs[d].incr + dirs[d].right.incr;
+					d = (d + 3) % 4;
+				}
+			}
+
+			if (loop.length > 0) {
+				var prev = loop[loop.length - 2];
+				var cur = loop[loop.length - 1];
+				var prevOut = cur.minus(prev).normalized().perpendicular();
+				loop.push(loop[0]);
+				for (var i = 0; i < loop.length; ++i) {
+					var next = loop[i];
+					var nextOut = next.minus(cur).normalized().perpendicular();
+
+					var out = prevOut.plus(nextOut);
+
+					//"correct" scaling:
+					var d = 1.0 / out.dot(nextOut);
+					out = out.times(0.07 * d + 0.15);
+					//out = out.times(0.5);
+
+					if (i == 0) {
+						verts2.push(cur.x, cur.y); colors.push(0xffffffff);
+					}
+					verts2.push(cur.x, cur.y); colors.push(0xffffffff);
+					verts2.push(cur.x + out.x, cur.y + out.y); colors.push(0x00ffffff);
+					if (i + 1 == loop.length) {
+						verts2.push(cur.x + out.x, cur.y + out.y); colors.push(0x00ffffff);
+					}
+
+					prev = cur;
+					cur = next;
+					prevOut = nextOut;
+				}
+			}
+		}
+	}
+
+	var mesh = {
+		verts2:new Float32Array(verts2),
+		colors4:new Uint32Array(colors),
+		emit:function() {
+			var s = gl.getParameter(gl.CURRENT_PROGRAM);
+
+			var vertsBuffer = gl.createBuffer();
+			gl.bindBuffer(gl.ARRAY_BUFFER, vertsBuffer);
+			gl.bufferData(gl.ARRAY_BUFFER, this.verts2, gl.STREAM_DRAW);
+			gl.vertexAttribPointer(s.aVertex.location, 2, gl.FLOAT, false, 0, 0);
+			gl.enableVertexAttribArray(s.aVertex.location);
+
+			var colorsBuffer = null;
+			if (s.aColor) {
+				colorsBuffer = gl.createBuffer();
+				gl.bindBuffer(gl.ARRAY_BUFFER, colorsBuffer);
+				gl.bufferData(gl.ARRAY_BUFFER, this.colors4, gl.STREAM_DRAW);
+				gl.vertexAttribPointer(s.aColor.location, 4, gl.UNSIGNED_BYTE, true, 0, 0);
+				gl.enableVertexAttribArray(s.aColor.location);
+			}
+			if (s.aNormal) {
+				gl.vertexAttrib3f(s.aColor.location, 0.0, 0.0, 1.0);
+			}
+
+			gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.verts2.length / 2);
+
+			if (s.aColor) {
+				gl.disableVertexAttribArray(s.aColor.location);
+				gl.deleteBuffer(colorsBuffer);
+			}
+			gl.disableVertexAttribArray(s.aVertex.location);
+			gl.deleteBuffer(vertsBuffer);
+			delete vertsBuffer;
+		}
+	};
+
+	return mesh;
+}
+
 ArrangeScene.prototype.setLevelPath = function(levelPath) {
 	this.levelPath = levelPath;
 
@@ -104,6 +292,19 @@ ArrangeScene.prototype.setLevelPath = function(levelPath) {
 	this.level = buildLevel();
 	this.fragments = this.level.fragments;
 	//(TODO: copy fragment positions from localState as needed)
+
+	//set up graphics state for all the fragments:
+	this.fragments.forEach(function(f){
+		//random initial rotation for pivots:
+		f.pivots.forEach(function(p){
+			p.spin = Math.random() * 2.0 * Math.PI;
+		});
+		//build floor:
+		f.floor = buildFloor(f.tiles.map(function(t){return t.at;}));
+		f.pulse = 0.0; f.pulseSpeed = 1.0;
+	});
+
+
 	//builds this.combined, populates this.problems, and updates this.scriptTriggers:
 	this.buildCombined();
 
@@ -235,7 +436,17 @@ ArrangeScene.prototype.update = function(elapsed) {
 	//since the view is changing, mark select as dirty:
 	this.selectDirty = true;
 
+	
+	//--- update floor pulsing animation ---
+	this.fragments.forEach(function(f){
+		f.pulse -= elapsed * f.pulseSpeed;
+		if (f.pulse < 0.0) {
+			f.pulse = 1.0 + Math.random();
+			f.pulseSpeed = 0.7 * Math.pow(2.0, Math.random() - 0.5);
+		}
+	});
 
+	//--- update scripts ---
 	if (this.scriptPlayer) {
 		this.scriptPlayer.update(elapsed);
 		if (this.scriptPlayer.finished) {
@@ -263,6 +474,36 @@ ArrangeScene.prototype.update = function(elapsed) {
 	if (!this.dragInfo && this.needScriptTriggers) {
 		this.updateScriptTriggers();
 	}
+
+	//--- update script trigger spinning animation ---
+
+	var selected = null;
+	if (this.hoverInfo && this.hoverInfo.scriptTrigger) {
+		selected = this.hoverInfo.scriptTrigger;
+	}
+
+	this.scriptTriggers.forEach(function(st){
+		var fac = 1.0;
+		if (st === selected) fac = 2.5;
+		st.spin += fac * elapsed;
+		if (st.spin > 2.0 * Math.PI) st.spin = st.spin % (2.0 * Math.PI);
+	});
+
+	//--- update rotate icon spinning animation ---
+
+	var selected = null;
+	if (this.hoverInfo && this.hoverInfo.pivot) {
+		selected = this.hoverInfo.pivot;
+	}
+	this.fragments.forEach(function(f){
+		f.pivots.forEach(function(p){
+			var fac = 1.0;
+			if (p === selected) fac = 2.5;
+			p.spin += fac * elapsed;
+			if (p.spin > 2.0 * Math.PI) p.spin = p.spin % (2.0 * Math.PI);
+		});
+	});
+
 }
 
 ArrangeScene.prototype.buildCombined = function() {
@@ -292,7 +533,7 @@ ArrangeScene.prototype.buildCombined = function() {
 		this.combined.size = {x:0, y:0};
 		return;
 	}
-	this.combined = Array((max.x - min.x + 1) * (max.y - min.y + 1));
+	this.combined = new Array((max.x - min.x + 1) * (max.y - min.y + 1));
 	this.combined.min = min;
 	this.combined.size = {x:max.x - min.x + 1, y:max.y - min.y + 1};
 
@@ -332,12 +573,26 @@ ArrangeScene.prototype.buildCombined = function() {
 
 	//building combined changes the scene, so mark select as dirty:
 	this.selectDirty = true;
+	delete this.floor;
 };
 
 ArrangeScene.prototype.updateScriptTriggers = function() {
+	var scriptSpins = {};
+	this.scriptTriggers.forEach(function(st){
+		if (st.spin) {
+			scriptSpins[st.name] = st.spin;
+		}
+	});
 	delete this.needScriptTriggers;
 	this.scriptTriggers = [];
 	this.level.addScriptTriggers && this.level.addScriptTriggers(this);
+	this.scriptTriggers.forEach(function(st){
+		if (st.name in scriptSpins) {
+			st.spin = scriptSpins[st.name];
+		} else {
+			st.spin = Math.random() * Math.PI * 2.0;
+		}
+	});
 };
 
 ArrangeScene.prototype.checkCombined = function() {
@@ -385,12 +640,8 @@ ArrangeScene.prototype.draw = function() {
 };
 
 ArrangeScene.prototype.drawHelper = function(drawSelect) {
-
 	if (drawSelect) {
 		gl.bindFramebuffer(gl.FRAMEBUFFER, selectFb);
-		gl.disable(gl.BLEND);
-	} else {
-		gl.disable(gl.BLEND); //unclear if we want to or not
 	}
 
 	//drawSelect = true; //DEBUG
@@ -411,15 +662,72 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 	}
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 	gl.enable(gl.DEPTH_TEST);
+	gl.disable(gl.BLEND);
 
 
-	var s = drawSelect?shaders.select:shaders.solid;
+	var s = drawSelect?shaders.select:shaders.tile;
 	gl.useProgram(s);
 
 	var MVP = this.MVP;
 
 	if (drawSelect) {
 		gl.uniform3f(s.uZ.location, 0.0, 0.0, 0.5 * TagZScale);
+	}
+
+
+	//Draw floor under everything:
+	if (!drawSelect) {
+		gl.enable(gl.BLEND);
+		gl.blendEquation(gl.FUNC_ADD);
+		gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+		gl.disable(gl.DEPTH_TEST);
+		if (!this.floor) {
+			var locs = [];
+			for (var x = 0; x < this.combined.size.x; ++x) {
+				for (var y = 0; y < this.combined.size.y; ++y) {
+					if (this.combined[y * this.combined.size.x + x].length) {
+						locs.push({
+							x:x + this.combined.min.x,
+							y:y + this.combined.min.y
+						});
+					}
+				}
+			}
+			this.floor = buildFloor(locs);
+		}
+		gl.uniformMatrix4fv(s.uMVP.location, false, MVP);
+		gl.uniform4f(s.uTint.location, 0.0, 0.0, 0.0, 0.5);
+		this.floor.emit();
+
+		var selected = null;
+		if (this.hoverInfo && this.hoverInfo.fragment) {
+			selected = this.hoverInfo.fragment;
+		}
+		this.fragments.forEach(function(f, fi){
+			if (f.fixed && f.pivots.length == 0) return;
+			var xd = rot(f.r,{x:1, y:0});
+			var yd = rot(f.r,{x:0, y:1});
+			var xf = new Mat4(
+				xd.x, xd.y, 0.0, 0.0,
+				yd.x, yd.y, 0.0, 0.0,
+				0.0, 0.0, 0.5, 0.0,
+				f.at.x, f.at.y, 0.0, 1.0
+			);
+			gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
+			if (f === selected) {
+				gl.uniform4f(s.uTint.location, 1.0, 1.0, 1.0, 0.5);
+			} else {
+				var p = 0.0;
+				if (f.pulse < 0.8) {
+					p = 0.5 - Math.cos(f.pulse / 0.8 * Math.PI * 2.0) * 0.5;
+				}
+				gl.uniform4f(s.uTint.location, 1.0, 1.0, 1.0, p * 0.05 + 0.1);
+			}
+			f.floor.emit();
+		});
+
+		gl.disable(gl.BLEND);
+		gl.enable(gl.DEPTH_TEST);
 	}
 
 	//Figure out direction x and y axes point in, so we can draw back-to-front:
@@ -441,81 +749,30 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 		gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
 	}
 
-	for (var x = 0; x < this.combined.size.x; ++x) {
-		for (var y = 0; y < this.combined.size.y; ++y) {
-			var stack = this.combined[y * this.combined.size.x + x];
-			var at = {x:this.combined.min.x + x, y:this.combined.min.y + y};
-
-			var tag = {x:at.x - this.selectTagMin.x, y:at.y - this.selectTagMin.y};
-
-			if (stack.length && !drawSelect) {
-				//draw floor
-				var xf = new Mat4(
-					0.5, 0.0, 0.0, 0.0,
-					0.0, 0.5, 0.0, 0.0,
-					0.0, 0.0, 0.5, 0.0,
-					at.x, at.y, 0.0, 1.0
-				);
-				gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
-				meshes.tiles.empty.emit();
-			}
-
-			stack.forEach(function(t, ti){
-				if (!drawSelect && t.path) return;
-
-				tr(t.r, at);
-				if (drawSelect) {
-					gl.vertexAttrib3f(s.aTag.location, tag.x / 255.0, tag.y / 255.0, ti / 255.0);
-				}
-				t.tile.emit();
-				//draw rotation action icons:
-				if (!this.scriptPlayer && t.t.pivot) {
-					var xf = new Mat4(
-						0.5, 0.0, 0.0, 0.0,
-						0.0, 0.5, 0.0, 0.0,
-						0.0, 0.0, 0.5, 0.0,
-						at.x, at.y, 0.0, 1.0
-					);
-					if (drawSelect) {
-						gl.vertexAttrib3f(s.aTag.location, tag.x / 255.0, tag.y / 255.0, ti / 255.0);
-					}
-					gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
-					meshes.icons.rotate.emit();
-				}
-			});
-
-		}
+	function rtr(r, at) {
+		var xd = rot(r,{x:1, y:0});
+		var yd = rot(r,{x:0, y:1});
+		var xf = new Mat4(
+			0.5 * xd.x, 0.5 * xd.y, 0.0, 0.0,
+			0.5 * yd.x, 0.5 * yd.y, 0.0, 0.0,
+			0.0, 0.0, 0.5, 0.0,
+			at.x + Math.random() * 0.2 - 0.1, at.y + Math.random() * 0.2 - 0.1, Math.random() * 0.1, 1.0
+		);
+		gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
 	}
 
-	//Draw action icons (script triggers):
-	if (!this.scriptPlayer) {
-		var selectTagMin = this.selectTagMin;
-		this.scriptTriggers.forEach(function(st){
-			//TODO: if script has played already, skip drawing
-			var xf = new Mat4(
-				0.5, 0.0, 0.0, 0.0,
-				0.0, 0.5, 0.0, 0.0,
-				0.0, 0.0, 0.5, 0.0,
-				st.at.x, st.at.y, 0.0, 1.0
-			);
-			gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
-			//TODO: select icon based on script info (e.g. different icon for exit)
-			//TODO: orient for viewing direction
-			if (drawSelect) {
-				var tag = {
-					x:st.at.x - selectTagMin.x,
-					y:st.at.y - selectTagMin.y
-				};
-				gl.vertexAttrib3f(s.aTag.location, tag.x / 255.0, tag.y / 255.0, 255);
-			}
 
-			meshes.icons.play.emit();
-		});
+	var selectedFragment = null;
+	if (this.hoverInfo && this.hoverInfo.fragment) {
+		selectedFragment = this.hoverInfo.fragment;
 	}
 
+	//Special path shaders:
 	if (!drawSelect && this.paths && this.paths.length > 0) {
+		var _s = s;
 		s = shaders.select; //temp, will be shaders.path at some pt
 		gl.useProgram(s);
+		gl.depthMask(false);
 		var combined = this.combined;
 		this.paths.forEach(function(path, pi){
 			gl.vertexAttrib3f(s.aTag.location, (0.5 + pi * 0.6234) % 1.0, 0.0, 1.0);
@@ -534,26 +791,189 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 				t.tile.emit();
 			});
 		});
+		gl.depthMask(true);
 
-		s = shaders.solid;
+		s = _s;
 		gl.useProgram(s);
+	}
+
+
+	var frontToBack = [];
+
+	for (var x = 0; x < this.combined.size.x; ++x) {
+		for (var y = 0; y < this.combined.size.y; ++y) {
+			var stack = this.combined[y * this.combined.size.x + x];
+			var at = {x:this.combined.min.x + x, y:this.combined.min.y + y};
+
+			var tag = {x:at.x - this.selectTagMin.x, y:at.y - this.selectTagMin.y};
+
+			stack.forEach(function(t, ti){
+				if (t.path && !drawSelect) return;
+				if (t.hasProblem && !drawSelect) {
+					var _at = {x:at.x, y:at.y};
+					var _t = t;
+					frontToBack.push({z:x * xZ + y * yZ, draw:function(){
+						rtr(_t.r, _at);
+						_t.tile.emit();
+						rtr(_t.r, _at);
+						_t.tile.emit();
+						rtr(_t.r, _at);
+						_t.tile.emit();
+					}});
+					return;
+				}
+
+				tr(t.r, at);
+				if (drawSelect) {
+					var idx = ti;
+					if (t.fragment.fixed && t.fragment.pivots.length == 0) {
+						idx = 255;
+					}
+					gl.vertexAttrib3f(s.aTag.location, tag.x / 255.0, tag.y / 255.0, idx / 255.0);
+				} else {
+					if (t.fragment == selectedFragment) {
+						gl.uniform4f(s.uTint.location, 1.2, 1.2, 1.2, 1.0);
+					} else {
+						gl.uniform4f(s.uTint.location, 1.0, 1.0, 1.0, 1.0);
+					}
+				}
+				t.tile.emit();
+			});
+
+		}
+	}
+
+	//draw tiles that have errors:
+	if (!drawSelect) {
+		var _s = s;
+		s = shaders.error;
+
+		frontToBack.sort(function(a,b){return b.z - a.z;});
+
+		gl.useProgram(s);
+		gl.enable(gl.BLEND);
+		gl.depthMask(false);
+		for (var i = 0; i < frontToBack.length; /* later */) {
+			var z = frontToBack[i].z;
+			var next_i = i;
+			while (next_i < frontToBack.length && frontToBack[next_i].z == z) {
+				++next_i;
+			}
+			gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+			for (var j = i; j < next_i; ++j) {
+				gl.uniform4f(s.uTint.location, 0.0, 0.0, 0.0, 0.3);
+				frontToBack[j].draw();
+			}
+			gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+			for (var j = i; j < next_i; ++j) {
+				gl.uniform4f(s.uTint.location, 0.4, 0.0, 0.0, 0.1);
+				frontToBack[j].draw();
+			}
+			i = next_i;
+		}
+		gl.depthMask(true);
+		gl.disable(gl.BLEND);
+
+		s = _s;
+		gl.useProgram(s);
+	}
+
+	var selectTagMin = this.selectTagMin;
+
+	//Draw action icons (pivots):
+	if (!this.scriptPlayer) {
+		var selected = null;
+		if (this.hoverInfo && this.hoverInfo.pivot) {
+			selected = this.hoverInfo.pivot;
+		}
+		this.fragments.forEach(function(f){
+			var xd = rot(f.r, {x:1,y:0});
+			var yd = rot(f.r, {x:0,y:1});
+			f.pivots.forEach(function(p){
+				var at = {
+					x:p.x * xd.x + p.y * yd.x + f.at.x,
+					y:p.x * xd.y + p.y * yd.y + f.at.y
+				};
+
+				var rx = {x:Math.cos(p.spin), y:Math.sin(p.spin)};
+				var ry = {x:-rx.y, y:rx.x};
+				var xf = new Mat4(
+					0.5 * rx.x, 0.5 * rx.y, 0.0, 0.0,
+					0.5 * ry.x, 0.5 * ry.y, 0.0, 0.0,
+					0.0, 0.0, 0.5, 0.0,
+					at.x, at.y, 0.0, 1.0
+				);
+				gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
+				if (drawSelect) {
+					var tag = {
+						x:at.x - selectTagMin.x,
+						y:at.y - selectTagMin.y
+					};
+					gl.vertexAttrib3f(s.aTag.location, tag.x / 255.0, tag.y / 255.0, 253 / 255.0);
+				} else {
+					if (p == selected) {
+						gl.uniform4f(s.uTint.location, 1.2, 1.2, 1.2, 1.0);
+					} else {
+						gl.uniform4f(s.uTint.location, 1.0, 1.0, 1.0, 1.0);
+					}
+				}
+				if (drawSelect) {
+					meshes.icons.rotate_select.emit();
+				} else {
+					meshes.icons.rotate.emit();
+				}
+			});
+		});
+	}
+
+	//Draw action icons (script triggers):
+	if (!this.scriptPlayer) {
+		var selected = null;
+		if (this.hoverInfo && this.hoverInfo.scriptTrigger) {
+			selected = this.hoverInfo.scriptTrigger;
+		}
+		this.scriptTriggers.forEach(function(st){
+			//TODO: if script has played already, skip drawing
+
+			var ang =-(Math.sin(st.spin) * 0.1 + 0.25) * Math.PI;
+
+			var xd = {x:Math.cos(ang), y:Math.sin(ang)};
+			var yd = {x:-xd.y, y:xd.x};
+			var xf = new Mat4(
+				0.5 * xd.x, 0.5 * xd.y, 0.0, 0.0,
+				0.5 * yd.x, 0.5 * yd.y, 0.0, 0.0,
+				0.0, 0.0, 0.5, 0.0,
+				st.at.x, st.at.y, 0.0, 1.0
+			);
+			gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
+			//TODO: orient for viewing direction
+			if (drawSelect) {
+				var tag = {
+					x:st.at.x - selectTagMin.x,
+					y:st.at.y - selectTagMin.y
+				};
+				gl.vertexAttrib3f(s.aTag.location, tag.x / 255.0, tag.y / 255.0, 254.0 / 255.0);
+			} else {
+				if (st === selected) {
+					gl.uniform4f(s.uTint.location, 1.2, 1.2, 1.2, 1.0);
+				} else {
+					gl.uniform4f(s.uTint.location, 1.0, 1.0, 1.0, 1.0);
+				}
+			}
+			if (st.advance) {
+				meshes.icons.advance.emit();
+			} else {
+				meshes.icons.play.emit();
+			}
+		});
 	}
 
 	if (!this.scriptPlayer && !drawSelect) {
 		gl.uniformMatrix4fv(s.uMVP.location, false, MVP);
-		this.problemPulse.draw(this.problems, MVP);
+		//this.problemPulse.draw(this.problems, MVP);
 		if (this.hoverInfo) {
-			if (this.hoverInfo.scriptTrigger) {
+			if (this.hoverInfo.scriptTrigger || this.hoverInfo.pivot) {
 				this.hoverPulse.draw([{at:this.hoverInfo.at}], MVP);
-			} else if (this.hoverInfo.fragment) {
-				var f = this.hoverInfo.fragment;
-				var dx = rot(f.r,{x:1,y:0});
-				var dy = rot(f.r,{x:0,y:1});
-				this.hoverPulse.draw(f.tiles.map(function (t) {
-					return {at: {
-						x: t.at.x * dx.x + t.at.y * dy.x + f.at.x,
-						y: t.at.x * dx.y + t.at.y * dy.y + f.at.y}};
-				}), MVP);
 			}
 		}
 		this.requirePulse.draw(this.require_problems, MVP);
@@ -688,19 +1108,38 @@ ArrangeScene.prototype.setHoverInfo = function(x, y) {
 		hoverInfo.z = 0.0;
 	}
 
-	this.scriptTriggers.some(function(st){
-		//TODO: check if script trigger has been played
-		if (st.at.x == hoverInfo.at.x && st.at.y == hoverInfo.at.y) {
-			hoverInfo.scriptTrigger = st;
-			return true;
-		}
-		return false;
-	});
+	if (idx == 254) { //script trigger
+		var found = this.scriptTriggers.some(function(st){
+			//TODO: check if script trigger has been played
+			if (st.at.x == hoverInfo.at.x && st.at.y == hoverInfo.at.y) {
+				hoverInfo.scriptTrigger = st;
+				return true;
+			}
+			return false;
+		});
+		if (found) return;
+		idx = 255; //otherwise 'just find something'
+	}
 
-	//If there is a script trigger in this tile, it takes precedence over
-	// all other actions:
-	if (hoverInfo.scriptTrigger) {
-		return;
+	if (idx == 253) { //fragment pivot
+		var found = this.fragments.some(function(f){
+			var xd = rot(f.r,{x:1,y:0});
+			var yd = rot(f.r,{x:0,y:1});
+			return f.pivots.some(function(p){
+				var at = {
+					x: p.x * xd.x + p.y * yd.x + f.at.x,
+					y: p.x * xd.y + p.y * yd.y + f.at.y
+				};
+				if (at.x == hoverInfo.at.x && at.y == hoverInfo.at.y) {
+					hoverInfo.fragment = f;
+					hoverInfo.pivot = p;
+					return true;
+				}
+				return false;
+			});
+		});
+		if (found) return;
+		idx = 255; //otherwise 'just find something'
 	}
 
 	//See if there is a fragment under this hover:
@@ -712,7 +1151,7 @@ ArrangeScene.prototype.setHoverInfo = function(x, y) {
 		if (idx == 255) {
 			//hit the ground, so find something interesting
 			stack.some(function(s,i){
-				if (!s.fragment.fixed) {
+				if (!s.fragment.fixed || s.fragment.pivots.length) {
 					idx = i;
 					return true;
 				}
@@ -725,7 +1164,6 @@ ArrangeScene.prototype.setHoverInfo = function(x, y) {
 			var fragment = stack[idx].fragment;
 			if (!fragment.fixed) {
 				//store info about hovered fragment:
-				hoverInfo.t = stack[idx].t;
 				hoverInfo.fragment = fragment;
 				var mouse3d = this.pixelToPlane(x,y,this.hoverInfo.z);
 				hoverInfo.mouseToFragment = {x:fragment.at.x - mouse3d.x, y:fragment.at.y - mouse3d.y};
@@ -806,7 +1244,7 @@ ArrangeScene.prototype.mouse = function(x, y, isDown) {
 				//stash this reference for later use:
 				this.scriptPlayer.trigger = this.hoverInfo.scriptTrigger;
 			} else if (this.hoverInfo.fragment) {
-				if (this.hoverInfo.t.pivot) {
+				if (this.hoverInfo.pivot) {
 					console.log("Rotating");
 					rot_fragment(1, this.hoverInfo.fragment, this.hoverInfo.at);
 					this.buildCombined();
@@ -814,6 +1252,7 @@ ArrangeScene.prototype.mouse = function(x, y, isDown) {
 					this.dragInfo = this.hoverInfo;
 				}
 			} else {
+			/* DISABLE camera motion
 				var mouse3d = this.mouseToPlane(0.0);
 				this.dragInfo = {
 					z:0,
@@ -822,6 +1261,7 @@ ArrangeScene.prototype.mouse = function(x, y, isDown) {
 						y:mouse3d.y
 					}
 				};
+				*/
 			}
 		}
 		this.mouseDown = true;

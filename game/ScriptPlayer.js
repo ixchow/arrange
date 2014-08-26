@@ -50,9 +50,11 @@ PawnState.prototype.nextAction = function() {
 			this.signals[param] = true;
 		} else if (op == 'say') {
 			this.txt = param;
+			this.cl = this.actions[this.action].cl || 'char1';
 			this.wait = {advance:true};
 		} else if (op == 'narrate') {
 			this.nar = param;
+			this.cl = this.actions[this.action].cl || 'char1';
 			this.wait = {advance:true};
 		} else if (op == 'walk') {
 			//make a copy of the walk path:
@@ -77,7 +79,6 @@ PawnState.prototype.nextAction = function() {
 						path.shift();
 						this.at = {x:next.x, y:next.y};
 						travel -= dis;
-						console.log(path.length);
 					} else {
 						var fac = travel / dis;
 						this.at = {x:this.at.x + to.x * fac, y:this.at.y + to.y * fac};
@@ -230,7 +231,7 @@ ScriptPlayer.prototype.draw = function(MVP) {
 				pos.x = (pos.x * 0.5 + 0.5) * engine.Size.x;
 				pos.y = (pos.y * 0.5 + 0.5) * engine.Size.y;
 				if (!('txtObj' in ps)) {
-					ps.txtObj = new engine.text(ps.txt, pos);
+					ps.txtObj = new engine.text(ps.txt, pos, ps.cl);
 				} else {
 					ps.txtObj.moveTo(pos);
 				}
@@ -238,7 +239,7 @@ ScriptPlayer.prototype.draw = function(MVP) {
 		} else {
 			if ('txt' in ps) {
 				if (!('txtObj' in ps)) {
-					ps.txtObj = new engine.text(ps.txt,null);
+					ps.txtObj = new engine.text(ps.txt,null, ps.cl);
 				} else {
 					ps.txtObj.moveTo(null);
 				}
@@ -246,7 +247,7 @@ ScriptPlayer.prototype.draw = function(MVP) {
 		}
 		if ('nar' in ps) {
 			if (!('narObj' in ps)) {
-				ps.narObj = new engine.text(ps.nar,null);
+				ps.narObj = new engine.text(ps.nar,null, ps.cl);
 			} else {
 				ps.narObj.moveTo(null);
 			}

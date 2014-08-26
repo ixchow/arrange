@@ -23,13 +23,17 @@ def to_normalized_uint8(val):
 
 #Write a mesh with just position:
 def mesh_data(obj):
+	bpy.context.scene.layers = obj.layers
 	try:
 		bpy.ops.object.mode_set(mode='OBJECT')
 	except:
 		print("Ignoring error setting mode to object")
 		
 	obj.data = obj.data.copy() #"make single user" (?)
-	bpy.context.scene.layers = obj.layers
+	try:
+		bpy.ops.object.convert(target='MESH', keep_original=False) #apply modifiers:
+	except:
+		print("Ignoring error applying modifiers")
 	#First, triangulate the mesh:
 	bpy.ops.object.select_all(action='DESELECT')
 	obj.select = True
@@ -42,11 +46,13 @@ def mesh_data(obj):
 	bpy.ops.object.mode_set(mode='OBJECT')
 
 	#Consider possibly using code to bake color:
-	if True: #do_flags & BakeColor:
+	try:
 		bpy.ops.mesh.vertex_color_add()
 		bpy.context.scene.render.bake_type = 'FULL'
 		bpy.context.scene.render.use_bake_to_vertex_color = True
 		bpy.ops.object.bake_image()
+	except:
+		print("Ignoring error during bake")
 
 	verts = []
 	#if do_flags & BakeTransform:
@@ -130,8 +136,11 @@ def mesh_data(obj):
 
 data = {}
 for obj in bpy.data.objects:
-	print(obj.name)
 	if obj.type == 'MESH':
+		if obj.name[0].startswith('.'):
+			print("Skipping " + obj.name)
+			continue
+		print("Exporting " + obj.name)
 		path = []
 		at = obj
 		while at != None:

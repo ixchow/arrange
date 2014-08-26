@@ -9,7 +9,7 @@ exports = function(tileMap, txt) {
 			x++;
 			if (t == '..') return null;
 			if (!groups[t[1]]) {
-				groups[t[1]] = { tiles: [], r: 0 };
+				groups[t[1]] = { tiles: [], r: 0, pivots: [] };
 			}
 			if (t[1] == '.') {
 				groups[t[1]].fixed = true;
@@ -33,7 +33,8 @@ exports = function(tileMap, txt) {
 				tileClone.tag = tile.tag;
 			}
 			if (tile.pivot) {
-				tileClone.pivot = tile.pivot;
+				groups[t[1]].pivots.push({x:pt.x, y:pt.y});
+				//tileClone.pivot = tile.pivot;
 			}
 			groups[t[1]].tiles.push(tileClone);
 		});

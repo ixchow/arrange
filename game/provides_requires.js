@@ -58,6 +58,23 @@ exports = {
 			});
 		});
 
+		//set hasProblem on any tile with a requires without a provides:
+		combined.forEach(function(stack, idx) {
+			stack.forEach(function (s) {
+				['c', 'n', 's', 'e', 'w'].forEach(function (d) {
+					var x = (idx % combined.size.x);
+					var y = ((idx / combined.size.x) | 0);
+					var new_idx = convert_index(combined, idx, rev_rot(d, s.r));
+					var requires = s.tile.requires && s.tile.requires[d];
+					if (!requires) return;
+					if (!connection_points[new_idx].provides[requires]) {
+						s.hasProblem = true;
+					}
+				});
+			});
+		});
+
+
 		var problems = [];
 		connection_points.forEach(function(d) {
 			for (r in d.requires) {

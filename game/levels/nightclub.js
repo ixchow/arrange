@@ -30,8 +30,8 @@ exports = function() {
 	txt += "|3 d. d. ).\n";
 	txt += "|3 d. -6 ).\n";
 	txt += "p. d. p. ).\n";
-	txt += "|. d. |1 ).\n";
-	txt += "S. d. {2 ).\n";
+	txt += "|. d. }1 ).\n";
+	txt += "S. d. |1 ).\n";
 
 	var level = game.buildLevel(tileMap, txt);
 	
@@ -61,14 +61,16 @@ exports = function() {
 		arrange.scriptTriggers = [];
 
 		arrange.scriptTriggers.push({
-			at:djTag,
-			name:"dj",
+			at:startTag,
+			name:"startNightclub",
 			script:{
 				pawn:{
 					mesh:meshes.characters.pawn,
 					actions:[
 						{appear:startTag},
-						{say:"drinking and dancing, this was my life"},
+						{say:"it's hard to remember one night from the next", cl:'char2'},
+						{appear:{x: 1, y: 1}},
+						{say:"if I wasn't drinking alone, I was dancing and drinking", cl:'char2'},
 						{vanish:null},
 					]
 				}
@@ -82,7 +84,7 @@ exports = function() {
 				pawn:{
 					mesh:meshes.characters.pawn,
 					actions:[
-						{narrate:"<i>DJ Viceroy</i> was pure legend"},
+						{narrate:"<i>DJ Viceroy</i> was pure legend", cl:'char2'},
 					]
 				}
 			}
@@ -139,12 +141,13 @@ exports = function() {
 
 			var actions = [];
 			actions.push({appear:firstPoints[0]});
-			actions.push({say:"now I remember. it was my birthday, and not a fun one"});
+			actions.push({say:"now I remember the last drink I had", cl:'char2'});
 			actions.push({walk:firstPoints});
-			actions.push({say:"that guy at the bar yelled at me when I pushed by"});
+			actions.push({say:"I pushed up to the bar for a few shots", cl:'char2'});
 			actions.push({walk:secondPoints});
-			actions.push({say:"I don't remember much after that"});
+			actions.push({say:"I remember getting to the dance floor...", cl:'char2'});
 			actions.push({walk:points});
+			actions.push({say:"then I must have blacked out", cl:'char2'});
 			actions.push({vanish:null});
 			actions.push({warp:'grad'});
 

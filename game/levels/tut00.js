@@ -1,6 +1,6 @@
 exports = function() {
 	var tileMap = {
-		">": { r:0, t: game.tiles.PathStart },
+		">": { r:0, t: game.tiles.PathStart, tag:"start" },
 		"^": { r:1, t: game.tiles.PathStart },
 		"<": { r:2, t: game.tiles.PathStart },
 		"v": { r:3, t: game.tiles.PathStart },
@@ -20,18 +20,47 @@ exports = function() {
 		"[": { r:1, t: game.tiles.Wall },
 		"_": { r:2, t: game.tiles.Wall },
 		"]": { r:3, t: game.tiles.Wall },
-		"&": { r:0, t: game.tiles.Desk, pivot:true},
 	};
 
 	var txt = "";
-	txt += "[. r0 -0 -0 ,1 X1 |1 r2 J2 L2 ].\n";
-	txt += ">. J0 &0 r0 J1 &1 L1 L2 &2 r2 D.\n";
-	txt += "[. r0 ,0 L0 -1 -1 -1 -2 -2 J2 ].\n";
+	txt += ".. ]. .. .. n. .. ..\n";
+	txt += ".. ]. .. .. |. .. ..\n";
+	txt += ".. .. ~. ~. |. ~. X.\n";
+	txt += ">. -. -. -. J. .. ..\n";
 
 	var level = game.buildLevel(tileMap, txt);
 
 	level.addScriptTriggers = function(arrange) {
+		arrange.scriptTriggers = [];
+		var startTag = arrange.findTag("start");
+
+		if (arrange.solved) {
+			function p2a(p) {
+				return {x:p.x + arrange.combined.min.x, y:p.y + arrange.combined.min.y};
+			}
+			var points = arrange.paths[0].map(p2a);
+
+			var actions = [];
+			actions.push({appear:startTag});
+			actions.push({say:"I remember some things clearly."});
+			actions.push({walk:points});
+			actions.push({vanish:null});
+			actions.push({warp:'tut01'});
+
+			arrange.scriptTriggers.push({
+				at:startTag,
+				advance:true,
+				name:"finish",
+				script:{
+					pawn:{
+						mesh:meshes.characters.pawn,
+						actions:actions
+					}
+				}
+			});
+		}
 	};
+
 
 	return level;
 };
