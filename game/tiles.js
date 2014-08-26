@@ -133,7 +133,8 @@ exports = {
 		fill:o.person
 	}),
 	Empty: new Tile({
-		mesh:'empty'
+		mesh:'empty',
+		fill: o.chair,
 	}),
 };
 
