@@ -748,10 +748,56 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 		gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
 	}
 
+	function rtr(r, at) {
+		var xd = rot(r,{x:1, y:0});
+		var yd = rot(r,{x:0, y:1});
+		var xf = new Mat4(
+			0.5 * xd.x, 0.5 * xd.y, 0.0, 0.0,
+			0.5 * yd.x, 0.5 * yd.y, 0.0, 0.0,
+			0.0, 0.0, 0.5, 0.0,
+			at.x + Math.random() * 0.2 - 0.1, at.y + Math.random() * 0.2 - 0.1, Math.random() * 0.1, 1.0
+		);
+		gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
+	}
+
+
 	var selectedFragment = null;
 	if (this.hoverInfo && this.hoverInfo.fragment) {
 		selectedFragment = this.hoverInfo.fragment;
 	}
+
+	//Special path shaders:
+	if (!drawSelect && this.paths && this.paths.length > 0) {
+		var _s = s;
+		s = shaders.select; //temp, will be shaders.path at some pt
+		gl.useProgram(s);
+		gl.depthMask(false);
+		var combined = this.combined;
+		this.paths.forEach(function(path, pi){
+			gl.vertexAttrib3f(s.aTag.location, (0.5 + pi * 0.6234) % 1.0, 0.0, 1.0);
+			path.forEach(function(p){
+				var t = p.s;
+				var at = {x:p.x+combined.min.x, y:p.y+combined.min.y};
+				var xd = rot(t.r,{x:1, y:0});
+				var yd = rot(t.r,{x:0, y:1});
+				var xf = new Mat4(
+					0.5 * xd.x, 0.5 * xd.y, 0.0, 0.0,
+					0.5 * yd.x, 0.5 * yd.y, 0.0, 0.0,
+					0.0, 0.0, 0.5, 0.0,
+					at.x, at.y, 0.0, 1.0
+				);
+				gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
+				t.tile.emit();
+			});
+		});
+		gl.depthMask(true);
+
+		s = _s;
+		gl.useProgram(s);
+	}
+
+
+	var frontToBack = [];
 
 	for (var x = 0; x < this.combined.size.x; ++x) {
 		for (var y = 0; y < this.combined.size.y; ++y) {
@@ -759,23 +805,22 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 			var at = {x:this.combined.min.x + x, y:this.combined.min.y + y};
 
 			var tag = {x:at.x - this.selectTagMin.x, y:at.y - this.selectTagMin.y};
-/*
-			//TODO: floor(s) in earlier pass
-			if (stack.length && !drawSelect) {
-				//draw floor
-				var xf = new Mat4(
-					0.5, 0.0, 0.0, 0.0,
-					0.0, 0.5, 0.0, 0.0,
-					0.0, 0.0, 0.5, 0.0,
-					at.x, at.y, 0.0, 1.0
-				);
-				gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
-				meshes.tiles.empty.emit();
-			}
-*/
 
 			stack.forEach(function(t, ti){
-				if (!drawSelect && t.path) return;
+				if (t.path && !drawSelect) return;
+				if (t.hasProblem && !drawSelect) {
+					var _at = {x:at.x, y:at.y};
+					var _t = t;
+					frontToBack.push({z:x * xZ + y * yZ, draw:function(){
+						rtr(_t.r, _at);
+						_t.tile.emit();
+						rtr(_t.r, _at);
+						_t.tile.emit();
+						rtr(_t.r, _at);
+						_t.tile.emit();
+					}});
+					return;
+				}
 
 				tr(t.r, at);
 				if (drawSelect) {
@@ -791,6 +836,41 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 			});
 
 		}
+	}
+
+	//draw tiles that have errors:
+	if (!drawSelect) {
+		var _s = s;
+		s = shaders.error;
+
+		frontToBack.sort(function(a,b){return b.z - a.z;});
+
+		gl.useProgram(s);
+		gl.enable(gl.BLEND);
+		gl.depthMask(false);
+		for (var i = 0; i < frontToBack.length; /* later */) {
+			var z = frontToBack[i].z;
+			var next_i = i;
+			while (next_i < frontToBack.length && frontToBack[next_i].z == z) {
+				++next_i;
+			}
+			gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+			for (var j = i; j < next_i; ++j) {
+				gl.uniform4f(s.uTint.location, 0.0, 0.0, 0.0, 0.3);
+				frontToBack[j].draw();
+			}
+			gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+			for (var j = i; j < next_i; ++j) {
+				gl.uniform4f(s.uTint.location, 0.2, 0.0, 0.0, 0.1);
+				frontToBack[j].draw();
+			}
+			i = next_i;
+		}
+		gl.depthMask(true);
+		gl.disable(gl.BLEND);
+
+		s = _s;
+		gl.useProgram(s);
 	}
 
 	var selectTagMin = this.selectTagMin;
@@ -883,36 +963,10 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 		});
 	}
 
-	//Special path shaders:
-	if (!drawSelect && this.paths && this.paths.length > 0) {
-		s = shaders.select; //temp, will be shaders.path at some pt
-		gl.useProgram(s);
-		var combined = this.combined;
-		this.paths.forEach(function(path, pi){
-			gl.vertexAttrib3f(s.aTag.location, (0.5 + pi * 0.6234) % 1.0, 0.0, 1.0);
-			path.forEach(function(p){
-				var t = p.s;
-				var at = {x:p.x+combined.min.x, y:p.y+combined.min.y};
-				var xd = rot(t.r,{x:1, y:0});
-				var yd = rot(t.r,{x:0, y:1});
-				var xf = new Mat4(
-					0.5 * xd.x, 0.5 * xd.y, 0.0, 0.0,
-					0.5 * yd.x, 0.5 * yd.y, 0.0, 0.0,
-					0.0, 0.0, 0.5, 0.0,
-					at.x, at.y, 0.0, 1.0
-				);
-				gl.uniformMatrix4fv(s.uMVP.location, false, MVP.times(xf));
-				t.tile.emit();
-			});
-		});
-
-		s = shaders.solid;
-		gl.useProgram(s);
-	}
 
 	if (!this.scriptPlayer && !drawSelect) {
 		gl.uniformMatrix4fv(s.uMVP.location, false, MVP);
-		this.problemPulse.draw(this.problems, MVP);
+		//this.problemPulse.draw(this.problems, MVP);
 		if (this.hoverInfo) {
 			if (this.hoverInfo.scriptTrigger || this.hoverInfo.pivot) {
 				this.hoverPulse.draw([{at:this.hoverInfo.at}], MVP);

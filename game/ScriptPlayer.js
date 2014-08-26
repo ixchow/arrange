@@ -79,7 +79,6 @@ PawnState.prototype.nextAction = function() {
 						path.shift();
 						this.at = {x:next.x, y:next.y};
 						travel -= dis;
-						console.log(path.length);
 					} else {
 						var fac = travel / dis;
 						this.at = {x:this.at.x + to.x * fac, y:this.at.y + to.y * fac};
