@@ -22,9 +22,9 @@ exports = function() {
 	
 	var txt = "";
 	txt += ".. .. .. .. B2 B2 .. .. .. ..\n";
-	txt += "H5 .. B1 B1 .. .. .. .. .. ).\n";
-	txt += "{5 -5 D1 D1 D1 .. {4 -4 -. E.\n";
-	txt += "h1 .. D1 D1 D1 .. |4 .. .. ).\n";
+	txt += "H5 .. .. B1 B1 .. .. .. .. ).\n";
+	txt += "{5 -5 .. D1 D1 D1 {4 -4 -. E.\n";
+	txt += ".. h1 .. D1 D1 D1 |4 .. .. ).\n";
 	txt += ".. .. -6 -6 -6 -6 ]4 .. .. ).\n";
 	txt += "|. d. .. .. c3 .. .. .. k. ).\n";
 	txt += "|. .. .. d2 .. j2 .. .. k. ).\n";
@@ -141,7 +141,7 @@ exports = function() {
 					pawn:{
 						mesh:meshes.characters.pawn,
 						actions:[
-							{narrate:"what happened to our class hamster..."},
+							{narrate:"I remember something about our class hamster..."},
 						]
 					}
 				}
