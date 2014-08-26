@@ -674,6 +674,7 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 		gl.uniform3f(s.uZ.location, 0.0, 0.0, 0.5 * TagZScale);
 	}
 
+
 	//Draw floor under everything:
 	if (!drawSelect) {
 		gl.enable(gl.BLEND);
@@ -824,7 +825,11 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 
 				tr(t.r, at);
 				if (drawSelect) {
-					gl.vertexAttrib3f(s.aTag.location, tag.x / 255.0, tag.y / 255.0, ti / 255.0);
+					var idx = ti;
+					if (t.fragment.fixed && t.fragment.pivots.length == 0) {
+						idx = 255;
+					}
+					gl.vertexAttrib3f(s.aTag.location, tag.x / 255.0, tag.y / 255.0, idx / 255.0);
 				} else {
 					if (t.fragment == selectedFragment) {
 						gl.uniform4f(s.uTint.location, 1.2, 1.2, 1.2, 1.0);
@@ -861,7 +866,7 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 			}
 			gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
 			for (var j = i; j < next_i; ++j) {
-				gl.uniform4f(s.uTint.location, 0.2, 0.0, 0.0, 0.1);
+				gl.uniform4f(s.uTint.location, 0.4, 0.1, 0.1, 0.1);
 				frontToBack[j].draw();
 			}
 			i = next_i;
@@ -1147,7 +1152,7 @@ ArrangeScene.prototype.setHoverInfo = function(x, y) {
 		if (idx == 255) {
 			//hit the ground, so find something interesting
 			stack.some(function(s,i){
-				if (!s.fragment.fixed) {
+				if (!s.fragment.fixed || s.fragment.pivots.length) {
 					idx = i;
 					return true;
 				}
