@@ -54,8 +54,8 @@ Pulse.prototype.draw = function(list, MVP) {
 			colors4.push(tip.r, tip.g, tip.b, tip.a);
 		});
 
+		var _s = gl.getParameter(gl.CURRENT_PROGRAM);
 		var s = shaders.solid;
-
 
 		gl.enable(gl.BLEND);
 		gl.blendEquation(gl.FUNC_ADD);
@@ -83,6 +83,8 @@ Pulse.prototype.draw = function(list, MVP) {
 		gl.disableVertexAttribArray(s.aVertex.location);
 		gl.deleteBuffer(vertsBuffer);
 		delete vertsBuffer;
+
+		gl.useProgram(_s);
 	}
 }
 

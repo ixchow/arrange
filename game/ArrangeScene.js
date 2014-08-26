@@ -866,7 +866,7 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 			}
 			gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
 			for (var j = i; j < next_i; ++j) {
-				gl.uniform4f(s.uTint.location, 0.4, 0.1, 0.1, 0.1);
+				gl.uniform4f(s.uTint.location, 0.4, 0.0, 0.0, 0.1);
 				frontToBack[j].draw();
 			}
 			i = next_i;
@@ -967,7 +967,6 @@ ArrangeScene.prototype.drawHelper = function(drawSelect) {
 			}
 		});
 	}
-
 
 	if (!this.scriptPlayer && !drawSelect) {
 		gl.uniformMatrix4fv(s.uMVP.location, false, MVP);
